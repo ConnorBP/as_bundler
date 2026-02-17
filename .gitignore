@@ -1,0 +1,11 @@
+base part 2/.vscode/
+build/
+docs/
+check/
+test/
+*.as
+!base part 2/source/*.as
+!base part 2/source/*/*.as
+!base part 2/source/*/*/*.as
+.claude
+.zed
