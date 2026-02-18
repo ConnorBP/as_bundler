@@ -7,6 +7,8 @@
 #include <cassert>
 #include <string>
 
+typedef unsigned int uint;
+
 // Stub function for registration (actual implementation not needed for validation)
 void StubFunction() {}
 
