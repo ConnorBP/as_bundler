@@ -72,6 +72,7 @@ typedef struct {
 
 // Global configuration
 static int g_verbose = 0; // -o flag: output bundled code
+static int g_strip_comments = 0; // --strip flag: strip comments from output
 static char g_input_dir[MAX_PATH] = {
     0}; // Remember the input directory for relative paths
 
@@ -543,7 +544,109 @@ void process_file(SourceFile *file, const char *chain[], int chain_len) {
   g_order.paths[g_order.count++] = file->path;
 }
 
-// Remove #include lines from content
+// Remove comment-only lines from content (keeps inline comments and code)
+char *strip_comments(const char *content) {
+  size_t size = strlen(content);
+  char *result = (char *)malloc(size + 1);
+  char *dst = result;
+  const char *src = content;
+  
+  while (*src) {
+    const char *line_start = src;
+    const char *check = src;
+    int in_string = 0;
+    char string_char = '\0';
+    
+    // Skip leading whitespace
+    while (*check == ' ' || *check == '\t') {
+      check++;
+    }
+    
+    // Check if line starts with a comment
+    if (*check == '/' && *(check + 1) == '/') {
+      // Single-line comment - skip entire line
+      while (*src && *src != '\n') {
+        src++;
+      }
+      if (*src == '\n') {
+        src++;
+      }
+      continue;
+    } else if (*check == '/' && *(check + 1) == '*') {
+      // Multi-line comment at start of line
+      const char *comment_end = check + 2;
+      while (*comment_end && !(*comment_end == '*' && *(comment_end + 1) == '/')) {
+        comment_end++;
+      }
+      if (*comment_end == '*' && *(comment_end + 1) == '/') {
+        comment_end += 2;
+      }
+      
+      // Check if there's any code after the comment on the last line of the comment
+      const char *after = comment_end;
+      while (*after == ' ' || *after == '\t') {
+        after++;
+      }
+      
+      if (*after == '\n' || *after == '\r' || *after == '\0') {
+        // Comment-only - skip to after the comment and skip the newline(s)
+        src = comment_end;
+        while (*src == ' ' || *src == '\t') {
+          src++;
+        }
+        if (*src == '\r') src++;
+        if (*src == '\n') {
+          src++;
+        }
+        continue;
+      }
+    }
+    
+    // This line has code - copy it but check for inline comments
+    while (*src && *src != '\n') {
+      if (!in_string) {
+        if (*src == '"' || *src == '\'') {
+          in_string = 1;
+          string_char = *src;
+          *dst++ = *src++;
+        } else if (*src == '/' && *(src + 1) == '/') {
+          // Inline single-line comment - keep it
+          *dst++ = *src++;
+        } else if (*src == '/' && *(src + 1) == '*') {
+          // Inline multi-line comment - keep it
+          *dst++ = *src++;
+        } else {
+          *dst++ = *src++;
+        }
+      } else {
+        // Inside string
+        if (*src == string_char) {
+          const char *ck = src - 1;
+          int escape_count = 0;
+          while (ck >= content && *ck == '\\') {
+            escape_count++;
+            ck--;
+          }
+          if (escape_count % 2 == 0) {
+            in_string = 0;
+          }
+        }
+        *dst++ = *src++;
+      }
+    }
+    
+    if (*src == '\r') {
+      *dst++ = *src++;
+    }
+    if (*src == '\n') {
+      *dst++ = *src++;
+    }
+  }
+  
+  *dst = '\0';
+  return result;
+}
+
 char *strip_includes(const char *content) {
   size_t size = strlen(content);
   char *result = (char *)malloc(size + 1);
@@ -593,10 +696,12 @@ void print_help(const char *program_name) {
          program_name);
   printf("\nOptions:\n");
   printf("  -o <file>    Output bundled code to specified file\n");
+  printf("  --strip      Strip comments from bundled output\n");
   printf("  --help       Show this help message\n");
   printf("\nExamples:\n");
   printf("  %s src/\n", program_name);
   printf("  %s -o bundle.as src/\n", program_name);
+  printf("  %s -o output.as --strip src/\n", program_name);
   printf("  %s -o output.as main.as utils.as\n", program_name);
   printf("\nWithout -o, only errors and warnings are displayed.\n");
 }
@@ -781,6 +886,8 @@ int main(int argc, char **argv) {
     if (strcmp(argv[i], "--help") == 0) {
       print_help(argv[0]);
       return 0;
+    } else if (strcmp(argv[i], "--strip") == 0) {
+      g_strip_comments = 1;
     } else if (strcmp(argv[i], "-o") == 0) {
       if (i + 1 < argc) {
         output_file = argv[++i];
@@ -797,6 +904,8 @@ int main(int argc, char **argv) {
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "-o") == 0) {
       i++; // Skip the next argument too
+    } else if (strcmp(argv[i], "--strip") == 0) {
+      // Skip this flag
     } else if (argv[i][0] != '-') {
       first_source = i;
       break;
@@ -860,6 +969,14 @@ int main(int argc, char **argv) {
   for (int i = 0; i < g_order.count; i++) {
     SourceFile *f = find_file(g_order.paths[i]);
     char *content = strip_includes(f->content);
+    
+    // Strip comments if requested
+    char *processed_content = content;
+    if (g_strip_comments) {
+      processed_content = strip_comments(content);
+      free(content);
+      content = processed_content;
+    }
 
     // Add file marker comment with relative path from input directory
     char rel_path[MAX_PATH];

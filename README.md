@@ -35,6 +35,7 @@ as_bundler [OPTIONS] <source_dir|file.as> [file2.as ...]
 
 ### Options
 - `-o <file>` - Output bundled code to specified file (without this, only validates)
+- `--strip` - Strip comments from bundled file
 - `--help` - Show help message
 
 ### Examples
@@ -45,6 +46,9 @@ as_bundler src/
 # Bundle and output to a file
 as_bundler -o bundle.as src/
 
+# Bundle, strip comments and output to a file
+as_bundler --strip -o bundle.as src/
+
 # Bundle specific files
 as_bundler -o output.as main.as utils.as
 ```
@@ -52,6 +56,8 @@ as_bundler -o output.as main.as utils.as
 ## Editor Integration
 
 ### VSCode / VSCodium
+
+Move `as_bundler` to .vscode folder.
 
 Create or edit `.vscode/tasks.json`:
 
@@ -62,8 +68,39 @@ Create or edit `.vscode/tasks.json`:
     {
       "label": "Validate AngelScript",
       "type": "shell",
-      "command": "./build/as_bundler",
+      "command": "./as_bundler",
       "args": ["${workspaceFolder}/src"],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "Build AngelScript",
+      "type": "shell",
+      "command": "./as_bundler",
+      "args": [
+      	"-o",
+       	"C:/Users/username/Documents/My Games/output.as",
+      	"${workspaceFolder}/src"
+      ],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "Build AngelScript stripped (error locations)",
+      "type": "shell",
+      "command": "./as_bundler",
+      "args": [
+      	"--strip",
+      	"-o",
+       	"C:/Users/username/Documents/My Games/output.as",
+      	"${workspaceFolder}/src"
+      ],
       "group": "build",
       "presentation": {
         "reveal": "always",
@@ -76,6 +113,8 @@ Create or edit `.vscode/tasks.json`:
 
 ### Zed
 
+Move `as_bundler` to .zed folder.
+
 Create or edit `.zed/tasks.json`:
 
 ```json
@@ -83,8 +122,29 @@ Create or edit `.zed/tasks.json`:
   "tasks": [
     {
       "label": "Validate AngelScript",
-      "command": "./build/as_bundler",
-      "args": ["$PROJECT/src"]
+      "command": "./as_bundler",
+      "args": [
+      	"$PROJECT/src"
+      ]
+    },
+    {
+      "label": "Build AngelScript",
+      "command": "./as_bundler",
+      "args": [
+      	"-o",
+       	"C:/Users/username/Documents/My Games/output.as",
+      	"$PROJECT/src"
+      ]
+    },
+    {
+      "label": "Build AngelScript stripped (error locations)",
+      "command": "./as_bundler",
+      "args": [
+      	"--strip",
+      	"-o",
+       	"C:/Users/username/Documents/My Games/output.as",
+      	"$PROJECT/src"
+      ]
     }
   ]
 }
