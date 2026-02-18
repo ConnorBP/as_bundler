@@ -23,10 +23,19 @@
 #ifdef _WIN32
 // Windows replacement for realpath
 static char *portable_realpath(const char *path, char *resolved_path) {
-  static char buffer[512];  // Use literal instead of MAX_PATH since it's not defined yet
-  char *result =
-      _fullpath(resolved_path ? resolved_path : buffer, path, 512);
-  return result;
+  if (resolved_path) {
+    return _fullpath(resolved_path, path, MAX_PATH);
+  } else {
+    // Allocate memory like Linux realpath does when passed NULL
+    char *buffer = (char *)malloc(MAX_PATH);
+    if (!buffer) return NULL;
+    char *result = _fullpath(buffer, path, MAX_PATH);
+    if (!result) {
+      free(buffer);
+      return NULL;
+    }
+    return buffer;
+  }
 }
 #define realpath portable_realpath
 #endif
