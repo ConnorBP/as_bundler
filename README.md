@@ -118,36 +118,22 @@ Move `as_bundler` to .zed folder.
 Create or edit `.zed/tasks.json`:
 
 ```json
-{
-  "tasks": [
-    {
-      "label": "Validate AngelScript",
-      "command": "./as_bundler",
-      "args": [
-      	"$PROJECT/src"
-      ]
-    },
-    {
-      "label": "Build AngelScript",
-      "command": "./as_bundler",
-      "args": [
-      	"-o",
-       	"C:/Users/username/Documents/My Games/output.as",
-      	"$PROJECT/src"
-      ]
-    },
-    {
-      "label": "Build AngelScript stripped (error locations)",
-      "command": "./as_bundler",
-      "args": [
-      	"--strip",
-      	"-o",
-       	"C:/Users/username/Documents/My Games/output.as",
-      	"$PROJECT/src"
-      ]
-    }
-  ]
-}
+[
+	{
+		"label": "Validate AngelScript",
+		"command": ".zed/as_bundler $ZED_WORKTREE_ROOT/source",
+	},
+	{
+		"label": "Build AngelScript",
+		"command": ".zed/as_bundler -o 'C:/Users/username/Documents/My Games/output.as' $ZED_WORKTREE_ROOT/source",
+	},
+	{
+		"label": "Build AngelScript stripped (error locations)",
+		"command": ".zed/as_bundler --strip -o 'C:/Users/username/Documents/My Games/output.as' $ZED_WORKTREE_ROOT/source",
+	},
+]
 ```
+
+Modify your windows username and output filename.
 
 To run tasks: `Ctrl + Shift + P` → "Tasks: Run Task"
