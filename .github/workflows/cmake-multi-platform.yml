@@ -4,9 +4,8 @@ name: CMake on multiple platforms
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    tags:
+      - 'v*'
 
 jobs:
   build:
@@ -73,3 +72,63 @@ jobs:
       # Execute tests defined by the CMake configuration. Note that --build-config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       run: ctest --build-config ${{ matrix.build_type }}
+
+    - name: Prepare Windows executable
+      if: matrix.os == 'windows-latest'
+      shell: bash
+      run: |
+        if [ -f "${{ steps.strings.outputs.build-output-dir }}/Release/as_bundler.exe" ]; then
+          cp "${{ steps.strings.outputs.build-output-dir }}/Release/as_bundler.exe" as_bundler.exe
+        else
+          cp "${{ steps.strings.outputs.build-output-dir }}/as_bundler.exe" as_bundler.exe
+        fi
+
+    - name: Prepare Linux executable
+      if: matrix.os == 'ubuntu-latest' && matrix.c_compiler == 'gcc'
+      shell: bash
+      run: |
+        cp "${{ steps.strings.outputs.build-output-dir }}/as_bundler" as_bundler
+
+    - name: Upload Windows executable
+      if: matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: as_bundler-windows
+        path: as_bundler.exe
+
+    - name: Upload Linux executable
+      if: matrix.os == 'ubuntu-latest' && matrix.c_compiler == 'gcc'
+      uses: actions/upload-artifact@v4
+      with:
+        name: as_bundler-linux
+        path: as_bundler
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Download Windows executable
+      uses: actions/download-artifact@v4
+      with:
+        name: as_bundler-windows
+
+    - name: Download Linux executable
+      uses: actions/download-artifact@v4
+      with:
+        name: as_bundler-linux
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          as_bundler.exe
+          as_bundler
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
