@@ -203,6 +203,8 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectMethod("matrix4x4", "void readas_double(proc_t &in, uint64)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("matrix4x4", "bool writeas_float(proc_t &in, uint64) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("matrix4x4", "bool writeas_double(proc_t &in, uint64) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("matrix4x4", "double opIndex(int) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	if (r < 0) printf("WARNING: Failed to register matrix4x4::opIndex (code: %d)\n", r);
 
 	// atomic_int32
 	r = engine->RegisterObjectType("atomic_int32", 4, asOBJ_VALUE | asOBJ_POD | asOBJ_APP_CLASS_CDAK);
