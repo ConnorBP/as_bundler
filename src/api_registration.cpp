@@ -203,6 +203,8 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectMethod("matrix4x4", "void readas_double(proc_t &in, uint64)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("matrix4x4", "bool writeas_float(proc_t &in, uint64) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("matrix4x4", "bool writeas_double(proc_t &in, uint64) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("matrix4x4", "double opIndex(int) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	if (r < 0) printf("WARNING: Failed to register matrix4x4::opIndex (code: %d)\n", r);
 
 	// atomic_int32
 	r = engine->RegisterObjectType("atomic_int32", 4, asOBJ_VALUE | asOBJ_POD | asOBJ_APP_CLASS_CDAK);
@@ -898,6 +900,9 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 
 	r = engine->RegisterGlobalFunction("void log_error(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
 
+	r = engine->RegisterGlobalFunction("void log_console(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
+	if (r < 0) printf("WARNING: Failed to register log_console (code: %d)\n", r);
+
 	// =====================================================
 	// SYSTEM API (CPU info, timing, datetime)
 	// =====================================================
@@ -1189,6 +1194,24 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	static const int UC_X86_REG_R15 = 15;
 	static const int UC_X86_REG_RIP = 16;
 	static const int UC_X86_REG_EFLAGS = 17;
+	static const int UC_X86_REG_GS_BASE = 18;
+	static const int UC_X86_REG_FS_BASE = 19;
+	static const int UC_X86_REG_XMM0  = 20;
+	static const int UC_X86_REG_XMM1  = 21;
+	static const int UC_X86_REG_XMM2  = 22;
+	static const int UC_X86_REG_XMM3  = 23;
+	static const int UC_X86_REG_XMM4  = 24;
+	static const int UC_X86_REG_XMM5  = 25;
+	static const int UC_X86_REG_XMM6  = 26;
+	static const int UC_X86_REG_XMM7  = 27;
+	static const int UC_X86_REG_XMM8  = 28;
+	static const int UC_X86_REG_XMM9  = 29;
+	static const int UC_X86_REG_XMM10 = 30;
+	static const int UC_X86_REG_XMM11 = 31;
+	static const int UC_X86_REG_XMM12 = 32;
+	static const int UC_X86_REG_XMM13 = 33;
+	static const int UC_X86_REG_XMM14 = 34;
+	static const int UC_X86_REG_XMM15 = 35;
 
 	r = engine->RegisterGlobalProperty("const uint UC_PROT_NONE", (void*)&UC_PROT_NONE);
 	r = engine->RegisterGlobalProperty("const uint UC_PROT_READ", (void*)&UC_PROT_READ);
@@ -1223,6 +1246,24 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalProperty("const int UC_X86_REG_R15", (void*)&UC_X86_REG_R15);
 	r = engine->RegisterGlobalProperty("const int UC_X86_REG_RIP", (void*)&UC_X86_REG_RIP);
 	r = engine->RegisterGlobalProperty("const int UC_X86_REG_EFLAGS", (void*)&UC_X86_REG_EFLAGS);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_GS_BASE", (void*)&UC_X86_REG_GS_BASE);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_FS_BASE", (void*)&UC_X86_REG_FS_BASE);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM0",  (void*)&UC_X86_REG_XMM0);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM1",  (void*)&UC_X86_REG_XMM1);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM2",  (void*)&UC_X86_REG_XMM2);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM3",  (void*)&UC_X86_REG_XMM3);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM4",  (void*)&UC_X86_REG_XMM4);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM5",  (void*)&UC_X86_REG_XMM5);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM6",  (void*)&UC_X86_REG_XMM6);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM7",  (void*)&UC_X86_REG_XMM7);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM8",  (void*)&UC_X86_REG_XMM8);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM9",  (void*)&UC_X86_REG_XMM9);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM10", (void*)&UC_X86_REG_XMM10);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM11", (void*)&UC_X86_REG_XMM11);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM12", (void*)&UC_X86_REG_XMM12);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM13", (void*)&UC_X86_REG_XMM13);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM14", (void*)&UC_X86_REG_XMM14);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM15", (void*)&UC_X86_REG_XMM15);
 
 	// Window operations
 	r = engine->RegisterGlobalFunction("uint64 find_window(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
