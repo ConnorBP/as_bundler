@@ -72,9 +72,11 @@ typedef struct {
 } ProcessedOrder;
 
 // Global configuration
-static int g_verbose = 0;          // -o flag set
-static int g_strip_comments = 0;   // --strip flag
-static int g_skip_preprocess = 0;  // --no-preprocess / -n flag
+static int g_verbose = 0;           // -o flag set
+static int g_strip_comments = 0;    // --strip flag
+static int g_skip_preprocess = 0;   // --no-preprocess / -n flag
+static int g_obfuscate = 0;         // --obfuscate / -O flag
+static int g_remove_newlines = 0;   // --remove-newlines / -R flag
 static char g_input_dir[MAX_PATH] = {0};
 static char g_prepend_file[MAX_PATH] = {0};  // --prepend / -p
 static char g_header_file[MAX_PATH] = {0};   // --header / -H
@@ -941,6 +943,386 @@ static char *convert_pragma_markers(char *content) {
 }
 
 // ---------------------------------------------------------------------------
+// Obfuscator
+// ---------------------------------------------------------------------------
+
+// AngelScript language keywords and built-in add-on type names that must
+// never be renamed.
+static const char *OBF_KEYWORDS[] = {
+  "abstract", "and", "any", "array", "auto", "bool", "break", "by",
+  "case", "cast", "catch", "class", "const", "continue", "default",
+  "dictionary", "do", "double", "else", "enum", "explicit", "external",
+  "false", "final", "float", "for", "from", "funcdef", "grid", "if",
+  "import", "in", "inout", "int", "int8", "int16", "int32", "int64",
+  "interface", "is", "mixin", "namespace", "not", "null", "or", "out",
+  "override", "private", "protected", "public", "ref", "return",
+  "shared", "string", "super", "switch", "this", "true", "try",
+  "typedef", "uint", "uint8", "uint16", "uint32", "uint64", "void",
+  "while", "xor",
+  NULL
+};
+
+// Token types for the obfuscator's mini-tokenizer
+typedef enum {
+  OT_IDENT = 0,    // [a-zA-Z_][a-zA-Z0-9_]*
+  OT_NUMBER,       // numeric literal (decimal, hex, float, with suffixes)
+  OT_STRING,       // "..." (with \-escapes)
+  OT_CHAR_LIT,     // '.' (with \-escape)
+  OT_HEREDOC,      // """..."""
+  OT_LINE_CMT,     // //...  (dropped in obfuscated output)
+  OT_BLOCK_CMT,    // /*...*/ (dropped)
+  OT_NEWLINE,      // \n or \r\n
+  OT_WHITESPACE,   // spaces / tabs
+  OT_PUNCT,        // operators, brackets, punctuation
+} OBFTokType;
+
+typedef struct {
+  OBFTokType  type;
+  const char *start;   // points into original buffer (not NUL-terminated)
+  int         len;
+} OBFTok;
+
+// Dynamic token array
+typedef struct { OBFTok *d; int n, cap; } TokArr;
+static void tokarr_push(TokArr *a, OBFTok t) {
+  if (a->n >= a->cap) {
+    a->cap = a->cap ? a->cap * 2 : 512;
+    a->d = (OBFTok *)realloc(a->d, (size_t)a->cap * sizeof(OBFTok));
+  }
+  a->d[a->n++] = t;
+}
+
+// Dynamic output string
+typedef struct { char *d; size_t len, cap; } DStr;
+static void dstr_init(DStr *s, size_t cap) {
+  s->d = (char *)malloc(cap); s->len = 0; s->cap = cap; s->d[0] = '\0';
+}
+static void dstr_grow(DStr *s, size_t need) {
+  if (s->len + need + 1 > s->cap) {
+    s->cap = (s->len + need + 1) * 2;
+    s->d = (char *)realloc(s->d, s->cap);
+  }
+}
+static void dstr_push_c(DStr *s, char c) {
+  dstr_grow(s, 1); s->d[s->len++] = c; s->d[s->len] = '\0';
+}
+static void dstr_push_n(DStr *s, const char *t, int n) {
+  dstr_grow(s, (size_t)n);
+  memcpy(s->d + s->len, t, (size_t)n);
+  s->len += (size_t)n; s->d[s->len] = '\0';
+}
+
+// Simple string set (unique, unsorted; linear search is fine for < ~5000 idents)
+typedef struct { char **d; int n, cap; } StrSet;
+static void strset_add_unique(StrSet *s, const char *str) {
+  for (int i = 0; i < s->n; i++) if (strcmp(s->d[i], str) == 0) return;
+  if (s->n >= s->cap) {
+    s->cap = s->cap ? s->cap * 2 : 64;
+    s->d = (char **)realloc(s->d, (size_t)s->cap * sizeof(char *));
+  }
+  s->d[s->n++] = strdup(str);
+}
+static void strset_free(StrSet *s) {
+  for (int i = 0; i < s->n; i++) free(s->d[i]);
+  free(s->d);
+}
+
+// Rename map: original → short obfuscated name
+typedef struct { char *orig; char renamed[12]; } RenEnt;
+typedef struct { RenEnt *d; int n, cap; } RenMap;
+static void renmap_put(RenMap *m, const char *orig, const char *repl) {
+  if (m->n >= m->cap) {
+    m->cap = m->cap ? m->cap * 2 : 64;
+    m->d = (RenEnt *)realloc(m->d, (size_t)m->cap * sizeof(RenEnt));
+  }
+  m->d[m->n].orig = strdup(orig);
+  strncpy(m->d[m->n].renamed, repl, 11); m->d[m->n].renamed[11] = '\0';
+  m->n++;
+}
+static const char *renmap_get(const RenMap *m, const char *s, int len) {
+  for (int i = 0; i < m->n; i++)
+    if (strncmp(m->d[i].orig, s, (size_t)len) == 0 && m->d[i].orig[len] == '\0')
+      return m->d[i].renamed;
+  return NULL;
+}
+static void renmap_free(RenMap *m) {
+  for (int i = 0; i < m->n; i++) free(m->d[i].orig);
+  free(m->d);
+}
+
+// qsort / bsearch comparator for arrays of (const char *)
+static int cmp_pstr(const void *a, const void *b) {
+  return strcmp(*(const char *const *)a, *(const char *const *)b);
+}
+
+// Is the NUL-terminated string 'tmp' present in the sorted set?
+static int pset_contains(const char *const *set, int n, const char *tmp) {
+  const char **r = (const char **)bsearch(
+      &tmp, set, (size_t)n, sizeof(char *), cmp_pstr);
+  return r != NULL;
+}
+
+// Is the non-NUL-terminated token text (s, len) present in the sorted set?
+static int pset_has(const char *const *set, int n, const char *s, int len) {
+  char tmp[256];
+  if (len >= 255) return 0;
+  memcpy(tmp, s, (size_t)len); tmp[len] = '\0';
+  return pset_contains(set, n, tmp);
+}
+
+// Generate the Nth short obfuscated identifier:
+//   _0.._9, _a.._z, _A.._Z  (62 one-char-suffix names)
+//   _00.._ZZ                 (3844 two-char-suffix names)
+//   _000...                  (238328 three-char-suffix names)
+static void gen_obf_name(int idx, char *out) {
+  static const char ch[] =
+      "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  int b = 62;
+  out[0] = '_';
+  if (idx < b) {
+    out[1] = ch[idx]; out[2] = '\0';
+  } else if (idx < b + b * b) {
+    idx -= b;
+    out[1] = ch[idx / b]; out[2] = ch[idx % b]; out[3] = '\0';
+  } else {
+    idx -= b + b * b;
+    out[1] = ch[idx / (b * b)];
+    out[2] = ch[(idx / b) % b];
+    out[3] = ch[idx % b]; out[4] = '\0';
+  }
+}
+
+// Is c an identifier character (alpha, digit, or underscore)?
+#define IS_IC(c) (isalnum((unsigned char)(c)) || (c) == '_')
+
+// Tokenize AngelScript source into a TokArr.
+static TokArr obf_tokenize(const char *src) {
+  TokArr ta; ta.d = NULL; ta.n = ta.cap = 0;
+  const char *p = src;
+  while (*p) {
+    const char *s = p;
+    OBFTok t;
+
+    // Line comment  //...
+    if (p[0] == '/' && p[1] == '/') {
+      p += 2; while (*p && *p != '\n') p++;
+      t.type = OT_LINE_CMT; t.start = s; t.len = (int)(p - s);
+      tokarr_push(&ta, t); continue;
+    }
+    // Block comment  /*...*/
+    if (p[0] == '/' && p[1] == '*') {
+      p += 2;
+      while (*p && !(p[0] == '*' && p[1] == '/')) p++;
+      if (*p) p += 2;
+      t.type = OT_BLOCK_CMT; t.start = s; t.len = (int)(p - s);
+      tokarr_push(&ta, t); continue;
+    }
+    // Heredoc  """..."""
+    if (p[0] == '"' && p[1] == '"' && p[2] == '"') {
+      p += 3;
+      while (*p && !(p[0] == '"' && p[1] == '"' && p[2] == '"')) p++;
+      if (*p) p += 3;
+      t.type = OT_HEREDOC; t.start = s; t.len = (int)(p - s);
+      tokarr_push(&ta, t); continue;
+    }
+    // String  "..."
+    if (*p == '"') {
+      p++;
+      while (*p && *p != '"') { if (*p == '\\' && p[1]) p++; p++; }
+      if (*p == '"') p++;
+      t.type = OT_STRING; t.start = s; t.len = (int)(p - s);
+      tokarr_push(&ta, t); continue;
+    }
+    // Char literal  '.'
+    if (*p == '\'') {
+      p++;
+      while (*p && *p != '\'') { if (*p == '\\' && p[1]) p++; p++; }
+      if (*p == '\'') p++;
+      t.type = OT_CHAR_LIT; t.start = s; t.len = (int)(p - s);
+      tokarr_push(&ta, t); continue;
+    }
+    // Newline
+    if (*p == '\r' || *p == '\n') {
+      if (*p == '\r') p++; if (*p == '\n') p++;
+      t.type = OT_NEWLINE; t.start = s; t.len = (int)(p - s);
+      tokarr_push(&ta, t); continue;
+    }
+    // Whitespace
+    if (*p == ' ' || *p == '\t') {
+      while (*p == ' ' || *p == '\t') p++;
+      t.type = OT_WHITESPACE; t.start = s; t.len = (int)(p - s);
+      tokarr_push(&ta, t); continue;
+    }
+    // Identifier  [a-zA-Z_][a-zA-Z0-9_]*
+    if (isalpha((unsigned char)*p) || *p == '_') {
+      while (IS_IC(*p)) p++;
+      t.type = OT_IDENT; t.start = s; t.len = (int)(p - s);
+      tokarr_push(&ta, t); continue;
+    }
+    // Number  (decimal, 0x hex, float, suffixes)
+    if (isdigit((unsigned char)*p)) {
+      while (isdigit((unsigned char)*p)) p++;
+      if ((*p == 'x' || *p == 'X') && (p - s) == 1 && s[0] == '0') {
+        p++;  // consume 'x'/'X'
+        while (isxdigit((unsigned char)*p)) p++;
+      } else {
+        if (*p == '.') { p++; while (isdigit((unsigned char)*p)) p++; }
+        if (*p == 'e' || *p == 'E') {
+          p++;
+          if (*p == '+' || *p == '-') p++;
+          while (isdigit((unsigned char)*p)) p++;
+        }
+      }
+      // Optional suffix letters (f, u, l, etc.)
+      while (*p == 'f' || *p == 'F' || *p == 'u' || *p == 'U' ||
+             *p == 'l' || *p == 'L') p++;
+      t.type = OT_NUMBER; t.start = s; t.len = (int)(p - s);
+      tokarr_push(&ta, t); continue;
+    }
+    // Single-character punctuation / operator
+    p++;
+    t.type = OT_PUNCT; t.start = s; t.len = 1;
+    tokarr_push(&ta, t);
+  }
+  return ta;
+}
+
+// Obfuscate 'content'.
+//   api_names       – engine-registered names to protect (may be NULL)
+//   remove_newlines – collapse all whitespace/newlines; add spaces only
+//                     where required to keep tokens distinct
+// Returns a new malloc'd string; caller must free it.
+static char *obfuscate_content(const char *content, ASNameList *api_names,
+                                int remove_newlines) {
+  // ----------------------------------------------------------
+  // 1. Build a sorted protected-name set: keywords + API names
+  // ----------------------------------------------------------
+  int kw_n = 0;
+  while (OBF_KEYWORDS[kw_n]) kw_n++;
+  int api_n   = api_names ? api_names->count : 0;
+  int total_p = kw_n + api_n;
+  const char **prot = (const char **)malloc((size_t)total_p * sizeof(char *));
+  int pi = 0;
+  for (int i = 0; i < kw_n;  i++) prot[pi++] = OBF_KEYWORDS[i];
+  for (int i = 0; i < api_n; i++) prot[pi++] = api_names->names[i];
+  qsort(prot, (size_t)pi, sizeof(char *), cmp_pstr);
+  // Deduplicate in-place
+  int up = 0;
+  for (int i = 0; i < pi; i++)
+    if (up == 0 || strcmp(prot[i], prot[up - 1]) != 0)
+      prot[up++] = prot[i];
+  int prot_n = up;
+
+  // ----------------------------------------------------------
+  // 2. Tokenize
+  // ----------------------------------------------------------
+  TokArr ta = obf_tokenize(content);
+
+  // ----------------------------------------------------------
+  // 3. Collect unique user-defined identifiers (unprotected)
+  // ----------------------------------------------------------
+  StrSet idents; idents.d = NULL; idents.n = idents.cap = 0;
+  char tmp[256];
+  for (int i = 0; i < ta.n; i++) {
+    OBFTok *tk = &ta.d[i];
+    if (tk->type != OT_IDENT) continue;
+    if (pset_has(prot, prot_n, tk->start, tk->len)) continue;
+    int l = tk->len < 255 ? tk->len : 255;
+    memcpy(tmp, tk->start, (size_t)l); tmp[l] = '\0';
+    strset_add_unique(&idents, tmp);
+  }
+  // Sort for stable / reproducible output
+  qsort(idents.d, (size_t)idents.n, sizeof(char *), cmp_pstr);
+
+  // ----------------------------------------------------------
+  // 4. Assign short obfuscated names (skip any that are protected)
+  // ----------------------------------------------------------
+  RenMap rmap; rmap.d = NULL; rmap.n = rmap.cap = 0;
+  int gen_idx = 0;
+  for (int i = 0; i < idents.n; i++) {
+    char new_name[12];
+    do { gen_obf_name(gen_idx++, new_name); }
+    while (pset_contains(prot, prot_n, new_name));
+    renmap_put(&rmap, idents.d[i], new_name);
+  }
+  printf("Obfuscated %d user identifier(s)\n", rmap.n);
+
+  // ----------------------------------------------------------
+  // 5. Reconstruct output with renamed identifiers
+  // ----------------------------------------------------------
+  DStr out;
+  dstr_init(&out, strlen(content) + 1024);
+  char prev = 0;   // last character emitted
+
+  for (int i = 0; i < ta.n; i++) {
+    OBFTok *tk = &ta.d[i];
+    switch (tk->type) {
+
+      case OT_LINE_CMT:
+      case OT_BLOCK_CMT:
+        // Drop all comments in obfuscated output
+        break;
+
+      case OT_NEWLINE:
+        if (!remove_newlines) { dstr_push_c(&out, '\n'); prev = '\n'; }
+        // In remove_newlines mode: discarded; needed spaces injected by IS_IC check
+        break;
+
+      case OT_WHITESPACE:
+        if (!remove_newlines) {
+          dstr_push_n(&out, tk->start, tk->len);
+          prev = ' ';
+        }
+        break;
+
+      case OT_IDENT: {
+        const char *emit = tk->start;
+        int         elen = tk->len;
+        const char *repl = renmap_get(&rmap, tk->start, tk->len);
+        if (repl) { emit = repl; elen = (int)strlen(repl); }
+        // Space needed when two identifier-chars would otherwise merge
+        if (elen > 0 && IS_IC(prev) && IS_IC(emit[0]))
+          dstr_push_c(&out, ' ');
+        dstr_push_n(&out, emit, elen);
+        if (elen > 0) prev = emit[elen - 1];
+        break;
+      }
+
+      case OT_NUMBER:
+        if (tk->len > 0 && IS_IC(prev) && IS_IC(tk->start[0]))
+          dstr_push_c(&out, ' ');
+        dstr_push_n(&out, tk->start, tk->len);
+        if (tk->len > 0) prev = tk->start[tk->len - 1];
+        break;
+
+      default:
+        // OT_STRING, OT_CHAR_LIT, OT_HEREDOC, OT_PUNCT: emit verbatim
+        if (tk->len > 0 && IS_IC(prev) && IS_IC(tk->start[0]))
+          dstr_push_c(&out, ' ');
+        dstr_push_n(&out, tk->start, tk->len);
+        if (tk->len > 0) prev = tk->start[tk->len - 1];
+        break;
+    }
+  }
+
+  // Trim trailing whitespace
+  while (out.len > 0 &&
+         (out.d[out.len - 1] == ' ' || out.d[out.len - 1] == '\n' ||
+          out.d[out.len - 1] == '\r'))
+    out.d[--out.len] = '\0';
+
+  // ----------------------------------------------------------
+  // 6. Cleanup
+  // ----------------------------------------------------------
+  free(ta.d);
+  strset_free(&idents);
+  renmap_free(&rmap);
+  free(prot);
+
+  return out.d;
+}
+
+// ---------------------------------------------------------------------------
 // Help text
 // ---------------------------------------------------------------------------
 
@@ -957,6 +1339,10 @@ void print_help(const char *program_name) {
          "(skips preprocessing)\n");
   printf("  -D<NAME>[=VALUE]       Define a preprocessor macro "
          "(repeatable)\n");
+  printf("  --obfuscate, -O        Rename user-defined identifiers with\n"
+         "                         short names; keep all API / type names\n");
+  printf("  --remove-newlines, -R  Collapse whitespace to minimum spaces\n"
+         "                         (best combined with --obfuscate)\n");
   printf("  --help                 Show this help message\n");
   printf("\nBuild timestamp macros (replaced before all other steps):\n");
   printf("  __BUILD_TIMESTAMP_STR__   String: \"YYYY-MM-DD HH:MM:SS\"\n");
@@ -978,6 +1364,7 @@ void print_help(const char *program_name) {
   printf("  %s -o out.as --strip -DDEBUG src/\n", program_name);
   printf("  %s -o out.as -p macros.h -H license.txt src/\n", program_name);
   printf("  %s -o out.as --no-preprocess src/\n", program_name);
+  printf("  %s -o out.as --obfuscate --remove-newlines src/\n", program_name);
   printf("\nWithout -o, only validation errors and warnings are displayed.\n");
 }
 
@@ -1123,6 +1510,10 @@ int main(int argc, char **argv) {
       g_strip_comments = 1;
     } else if (strcmp(arg, "--no-preprocess") == 0 || strcmp(arg, "-n") == 0) {
       g_skip_preprocess = 1;
+    } else if (strcmp(arg, "--obfuscate") == 0 || strcmp(arg, "-O") == 0) {
+      g_obfuscate = 1;
+    } else if (strcmp(arg, "--remove-newlines") == 0 || strcmp(arg, "-R") == 0) {
+      g_remove_newlines = 1;
     } else if (strcmp(arg, "-o") == 0) {
       if (i + 1 < argc) {
         output_file = argv[++i];
@@ -1183,6 +1574,8 @@ int main(int argc, char **argv) {
   // --- Log active options ---
   if (g_strip_comments)        printf("Option: Stripping comment-only lines\n");
   if (g_skip_preprocess)       printf("Option: Skipping C preprocessor\n");
+  if (g_obfuscate)             printf("Option: Obfuscating identifiers\n");
+  if (g_remove_newlines)       printf("Option: Removing newlines\n");
   if (g_prepend_file[0])       printf("Option: Prepend file: %s\n", g_prepend_file);
   if (g_header_file[0])        printf("Option: Header file: %s\n", g_header_file);
   if (g_define_count > 0) {
@@ -1347,6 +1740,10 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  // Grab protected API name list for obfuscator before validation changes state
+  ASNameList *api_names = g_obfuscate ? as_get_registered_names(validator) : NULL;
+  if (api_names) printf("Loaded %d protected API name(s)\n", api_names->count);
+
   ASErrorList *errors = as_error_list_create();
 
   if (as_add_section(validator, combined, "bundled") < 0) {
@@ -1446,6 +1843,21 @@ int main(int argc, char **argv) {
   if (errors->error_count > 0) fprintf(stderr, "\n");
 
   free(index);
+
+  // --- Step 10b: Obfuscate identifiers ---
+  if (g_obfuscate && !validation_failed) {
+    printf("Obfuscating identifiers%s...\n",
+           g_remove_newlines ? " and removing newlines" : "");
+    char *obfuscated = obfuscate_content(combined, api_names, g_remove_newlines);
+    free(combined);
+    combined = obfuscated;
+  } else if (g_remove_newlines && !validation_failed) {
+    // newline removal without rename
+    char *obfuscated = obfuscate_content(combined, NULL, 1);
+    free(combined);
+    combined = obfuscated;
+  }
+  if (api_names) { as_name_list_destroy(api_names); api_names = NULL; }
 
   // --- Step 11: Write output ---
   if (g_verbose && output_file) {
