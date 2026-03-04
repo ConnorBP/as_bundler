@@ -959,6 +959,8 @@ static const char *OBF_KEYWORDS[] = {
   "shared", "string", "super", "switch", "this", "true", "try",
   "typedef", "uint", "uint8", "uint16", "uint32", "uint64", "void",
   "while", "xor",
+  // Entry-point name that must never be renamed
+  "main",
   NULL
 };
 
