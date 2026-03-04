@@ -185,6 +185,75 @@ int as_build(void* validator, ASErrorList* errors) {
 	return r < 0 ? -1 : 0;
 }
 
+ASNameList *as_get_registered_names(void *validator) {
+	ValidatorContext *ctx = static_cast<ValidatorContext *>(validator);
+	asIScriptEngine *engine = ctx->engine;
+
+	std::vector<std::string> names;
+	auto add = [&](const char *name) {
+		if (name && *name) names.push_back(name);
+	};
+
+	// Global functions
+	for (asUINT i = 0; i < engine->GetGlobalFunctionCount(); i++)
+		add(engine->GetGlobalFunctionByIndex(i)->GetName());
+
+	// Global properties
+	for (asUINT i = 0; i < engine->GetGlobalPropertyCount(); i++) {
+		const char *name = nullptr;
+		engine->GetGlobalPropertyByIndex(i, &name);
+		add(name);
+	}
+
+	// Object types (includes methods and properties)
+	for (asUINT i = 0; i < engine->GetObjectTypeCount(); i++) {
+		asITypeInfo *ti = engine->GetObjectTypeByIndex(i);
+		add(ti->GetName());
+		for (asUINT j = 0; j < ti->GetMethodCount(); j++)
+			add(ti->GetMethodByIndex(j)->GetName());
+		for (asUINT j = 0; j < ti->GetPropertyCount(); j++) {
+			const char *pname = nullptr;
+			ti->GetProperty(j, &pname);
+			add(pname);
+		}
+	}
+
+	// Enums and their values
+	for (asUINT i = 0; i < engine->GetEnumCount(); i++) {
+		asITypeInfo *ti = engine->GetEnumByIndex(i);
+		add(ti->GetName());
+		for (asUINT j = 0; j < ti->GetEnumValueCount(); j++) {
+			int val;
+			add(ti->GetEnumValueByIndex(j, &val));
+		}
+	}
+
+	// Typedefs
+	for (asUINT i = 0; i < engine->GetTypedefCount(); i++)
+		add(engine->GetTypedefByIndex(i)->GetName());
+
+	// Funcdefs
+	for (asUINT i = 0; i < engine->GetFuncdefCount(); i++)
+		add(engine->GetFuncdefByIndex(i)->GetName());
+
+	ASNameList *list = (ASNameList *)malloc(sizeof(ASNameList));
+	list->count = (int)names.size();
+	list->names = (char **)malloc((size_t)list->count * sizeof(char *));
+	for (int i = 0; i < list->count; i++) {
+		size_t len = names[i].length() + 1;
+		list->names[i] = (char *)malloc(len);
+		memcpy(list->names[i], names[i].c_str(), len);
+	}
+	return list;
+}
+
+void as_name_list_destroy(ASNameList *list) {
+	if (!list) return;
+	for (int i = 0; i < list->count; i++) free(list->names[i]);
+	free(list->names);
+	free(list);
+}
+
 void as_validator_destroy(void* validator) {
 	ValidatorContext* ctx = static_cast<ValidatorContext*>(validator);
 	if (ctx->engine) {

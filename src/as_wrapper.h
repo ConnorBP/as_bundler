@@ -38,6 +38,15 @@ void as_validator_destroy(void* validator);
 ASErrorList* as_error_list_create(void);
 void as_error_list_destroy(ASErrorList* list);
 
+// Flat list of all identifier names registered with the engine.
+// Used by the obfuscator to build its protected-name set.
+typedef struct {
+	char **names;
+	int    count;
+} ASNameList;
+
+ASNameList *as_get_registered_names(void *validator);
+void        as_name_list_destroy(ASNameList *list);
 
 #ifdef __cplusplus
 }
