@@ -111,7 +111,7 @@ Create or edit `.vscode/tasks.json`:
     {
       "label": "Validate AngelScript",
       "type": "shell",
-      "command": "E:/DEVELOPER/PROJECTS/as_bundler/build/Release/as_bundler.exe",
+      "command": "./as_bundler",
       "args": ["${workspaceFolder}/source"],
       "group": "build",
       "presentation": {
@@ -122,7 +122,7 @@ Create or edit `.vscode/tasks.json`:
     {
       "label": "Build AngelScript",
       "type": "shell",
-      "command": "E:/DEVELOPER/PROJECTS/as_bundler/build/Release/as_bundler.exe",
+      "command": "./as_bundler",
       "args": [
         "-o",
         "C:/Users/username/Documents/My Games/output.as",
@@ -137,7 +137,7 @@ Create or edit `.vscode/tasks.json`:
     {
       "label": "Build and Scramble AngelScript",
       "type": "shell",
-      "command": "E:/DEVELOPER/PROJECTS/as_bundler/build/Release/as_bundler.exe",
+      "command": "./as_bundler",
       "args": [
         "--obfuscate",
         "--remove-newlines",
