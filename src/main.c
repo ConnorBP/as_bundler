@@ -963,7 +963,7 @@ static const char *OBF_KEYWORDS[] = {
   // Entry-point name that must never be renamed
   "main",
   // Generated string-scrambler symbols that must never be renamed
-  "__dec", "__gs", "__init_str_table", "__str_table",
+  "__dec", "__gs", "__gs_init", "__init_str_table", "__str_table",
   NULL
 };
 
@@ -1337,7 +1337,10 @@ static char *obfuscate_content(const char *content, ASNameList *api_names,
 //   __gs(0xFNV64_HEX_KEY)
 // and prepends helper functions + an __init_str_table() function that
 // initialises a global hash_map@ from XOR-encrypted byte arrays.
-// __init_str_table() is injected as the first statement of main().
+// Initialisation is triggered by the global variable declaration
+//   int __gs_init = __init_str_table();
+// which AngelScript evaluates before any function runs, so strings used
+// in other global variable initialisers are always available.
 //
 // Encryption: each string is XOR'd byte-by-byte with a per-string key
 // derived from the FNV-1a 32-bit hash of the string (never zero).
@@ -1462,6 +1465,9 @@ static char *scramble_strings(char *content) {
 
   static const char hdr[] =
     "// === __str_scramble_helpers ===\n"
+    // Global init trigger: evaluated before any function runs so strings
+    // are available even in other global variable initialisers.
+    "int __gs_init=__init_str_table();\n"
     // Global hash_map handle: uint64 key -> string value
     "hash_map@ __str_table;\n"
     // __dec(bytes, key): XOR-decrypt byte array back to string
@@ -1472,8 +1478,8 @@ static char *scramble_strings(char *content) {
     // __gs(key): look up a scrambled string by its FNV-64 uint64 key
     "string __gs(uint64 k){"
       "string v;if(__str_table.get(k,v))return v;return \"\";}\n"
-    "void __init_str_table(){\n"
-    // Construct the hash_map instance on first call
+    "int __init_str_table(){\n"
+    // Construct the hash_map instance
     "@__str_table=hash_map();\n";
   dstr_push_n(&pro, hdr, (int)(sizeof(hdr) - 1));
 
@@ -1493,7 +1499,7 @@ static char *scramble_strings(char *content) {
     dstr_push_str(&pro, buf);
     dstr_push_str(&pro, "));\n");
   }
-  dstr_push_str(&pro, "}\n\n");
+  dstr_push_str(&pro, "return 1;\n}\n\n");
 
   // ------------------------------------------------------------------
   // 3. Rebuild source: replace string literals + inject init call
@@ -1501,56 +1507,10 @@ static char *scramble_strings(char *content) {
   DStr out;
   dstr_init(&out, strlen(content) + 512);
 
-  // State machine to find main()'s opening brace and inject the init call.
-  //   0 = searching for "main" identifier
-  //   1 = found "main", scanning for '('
-  //   2 = inside parameter list (tracking paren depth)
-  //   3 = past ')', scanning for opening '{'
-  //   4 = injected (done)
-  int  main_state  = 0;
-  int  paren_depth = 0;
-  char prev_ch     = 0;
+  char prev_ch = 0;
 
   for (int i = 0; i < ta.n; i++) {
     OBFTok *tk = &ta.d[i];
-
-    // ---- main() detection state machine ----
-    if (main_state < 4) {
-      if (main_state == 0) {
-        if (tk->type == OT_IDENT && tk->len == 4 &&
-            strncmp(tk->start, "main", 4) == 0)
-          main_state = 1;
-      } else if (main_state == 1) {
-        if (tk->type == OT_WHITESPACE || tk->type == OT_NEWLINE ||
-            tk->type == OT_LINE_CMT   || tk->type == OT_BLOCK_CMT)
-          ; // keep scanning
-        else if (tk->type == OT_PUNCT && tk->len == 1 &&
-                 tk->start[0] == '(')
-          { main_state = 2; paren_depth = 1; }
-        else
-          main_state = 0; // not a function definition, reset
-      } else if (main_state == 2) {
-        if (tk->type == OT_PUNCT && tk->len == 1) {
-          if      (tk->start[0] == '(') paren_depth++;
-          else if (tk->start[0] == ')' && --paren_depth == 0) main_state = 3;
-        }
-      } else if (main_state == 3) {
-        if (tk->type == OT_WHITESPACE || tk->type == OT_NEWLINE ||
-            tk->type == OT_LINE_CMT   || tk->type == OT_BLOCK_CMT)
-          ; // keep scanning
-        else if (tk->type == OT_PUNCT && tk->len == 1 &&
-                 tk->start[0] == '{') {
-          // Emit '{' then inject the init call
-          dstr_push_c(&out, '{');
-          dstr_push_str(&out, "\n__init_str_table();");
-          prev_ch    = ';';
-          main_state = 4;
-          continue; // skip normal emit for this token
-        } else {
-          main_state = 0; // forward-declaration or other use, reset
-        }
-      }
-    }
 
     // ---- string literal replacement ----
     if (tk->type == OT_STRING && tk->len >= 2) {
@@ -1579,9 +1539,6 @@ static char *scramble_strings(char *content) {
     dstr_push_n(&out, tk->start, tk->len);
     if (tk->len > 0) prev_ch = tk->start[tk->len - 1];
   }
-
-  if (main_state < 4)
-    printf("Warning: could not locate main() to inject __init_str_table() call\n");
 
   // ------------------------------------------------------------------
   // 4. Final result: prologue prepended to rewritten source
