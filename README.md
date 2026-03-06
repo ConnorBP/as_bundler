@@ -45,6 +45,7 @@ as_bundler [OPTIONS] <source_dir|file.as> [file2.as ...]
 | `-D<NAME>[=VALUE]` | Define a preprocessor macro (repeatable) |
 | `--obfuscate`, `-O` | Rename user-defined identifiers with short names; keeps all API / type names |
 | `--remove-newlines`, `-R` | Collapse whitespace to minimum spaces (best combined with `--obfuscate`) |
+| `--scramble-strings`, `-S` | Replace string literals with runtime hash-map lookups; values stored as XOR-encrypted byte arrays |
 | `--help` | Show help message |
 
 ### Build Timestamp Macros
@@ -94,8 +95,8 @@ as_bundler -o out.as --strip -DDEBUG src/
 # Skip the C preprocessor entirely
 as_bundler -o out.as --no-preprocess src/
 
-# Obfuscate and minify (rename identifiers + remove newlines)
-as_bundler -o out.as --obfuscate --remove-newlines src/
+# Obfuscate and minify (rename identifiers + remove newlines + scramble strings)
+as_bundler -o out.as --obfuscate --scramble-strings --remove-newlines src/
 ```
 
 ## Editor Integration
