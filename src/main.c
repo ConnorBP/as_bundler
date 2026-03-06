@@ -1480,14 +1480,14 @@ static char *scramble_strings(char *content) {
       "string v;if(__str_table.get(k,v))return v;return \"\";}\n"
     "int __init_str_table(){\n"
     // Construct the hash_map instance
-    "@__str_table=hash_map();\n";
+    "\t@__str_table=hash_map();\n";
   dstr_push_n(&pro, hdr, (int)(sizeof(hdr) - 1));
 
   char buf[32];
   for (int i = 0; i < strs.n; i++) {
     ScrStr *s = &strs.d[i];
     // __str_table.set(0xKEY,__dec({0xNN,...},0xKK));
-    dstr_push_str(&pro, "__str_table.set(");
+    dstr_push_str(&pro, "\t__str_table.set(");
     dstr_push_str(&pro, s->key_hex);   // e.g. 0x27af7b24c84db5d7
     dstr_push_str(&pro, ",__dec({");
     for (int j = 0; j < s->raw_len; j++) {
@@ -1499,7 +1499,7 @@ static char *scramble_strings(char *content) {
     dstr_push_str(&pro, buf);
     dstr_push_str(&pro, "));\n");
   }
-  dstr_push_str(&pro, "return 1;\n}\n\n");
+  dstr_push_str(&pro, "\treturn 1;\n}\n\n");
 
   // ------------------------------------------------------------------
   // 3. Rebuild source: replace string literals + inject init call
