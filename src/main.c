@@ -77,6 +77,7 @@ static int g_strip_comments = 0;    // --strip flag
 static int g_skip_preprocess = 0;   // --no-preprocess / -n flag
 static int g_obfuscate = 0;         // --obfuscate / -O flag
 static int g_remove_newlines = 0;   // --remove-newlines / -R flag
+static int g_scramble_strings = 0;  // --scramble-strings / -S flag
 static char g_input_dir[MAX_PATH] = {0};
 static char g_prepend_file[MAX_PATH] = {0};  // --prepend / -p
 static char g_header_file[MAX_PATH] = {0};   // --header / -H
@@ -961,6 +962,8 @@ static const char *OBF_KEYWORDS[] = {
   "while", "xor",
   // Entry-point name that must never be renamed
   "main",
+  // Generated string-scrambler symbols that must never be renamed
+  "__dec", "__gs", "__gs_init", "__init_str_table", "__str_table",
   NULL
 };
 
@@ -1012,6 +1015,9 @@ static void dstr_push_n(DStr *s, const char *t, int n) {
   dstr_grow(s, (size_t)n);
   memcpy(s->d + s->len, t, (size_t)n);
   s->len += (size_t)n; s->d[s->len] = '\0';
+}
+static void dstr_push_str(DStr *s, const char *t) {
+  dstr_push_n(s, t, (int)strlen(t));
 }
 
 // Simple string set (unique, unsorted; linear search is fine for < ~5000 idents)
@@ -1325,6 +1331,234 @@ static char *obfuscate_content(const char *content, ASNameList *api_names,
 }
 
 // ---------------------------------------------------------------------------
+// String scrambler
+//
+// Replaces every non-empty string literal with a runtime lookup:
+//   __gs(0xFNV64_HEX_KEY)
+// and prepends helper functions + an __init_str_table() function that
+// initialises a global hash_map@ from XOR-encrypted byte arrays.
+// Initialisation is triggered by the global variable declaration
+//   int __gs_init = __init_str_table();
+// which AngelScript evaluates before any function runs, so strings used
+// in other global variable initialisers are always available.
+//
+// Encryption: each string is XOR'd byte-by-byte with a per-string key
+// derived from the FNV-1a 32-bit hash of the string (never zero).
+// The runtime helper __dec(bytes, key) reverses this.
+// ---------------------------------------------------------------------------
+
+// Decode C/AngelScript escape sequences inside a string literal body
+// (content between the outer quotes, quotes not included).
+// Writes decoded bytes to `out` (caller must allocate body_len+1 bytes).
+// Returns number of bytes written.
+static int decode_string_body(const char *body, int body_len,
+                               unsigned char *out) {
+  int n = 0;
+  for (int i = 0; i < body_len; ) {
+    if (body[i] == '\\' && i + 1 < body_len) {
+      i++;
+      switch (body[i]) {
+        case 'n':  out[n++] = '\n'; i++; break;
+        case 't':  out[n++] = '\t'; i++; break;
+        case 'r':  out[n++] = '\r'; i++; break;
+        case '0':  out[n++] = '\0'; i++; break;
+        case '\\': out[n++] = '\\'; i++; break;
+        case '"':  out[n++] = '"';  i++; break;
+        case '\'': out[n++] = '\''; i++; break;
+        case 'x':
+          if (i + 2 < body_len &&
+              isxdigit((unsigned char)body[i+1]) &&
+              isxdigit((unsigned char)body[i+2])) {
+            char h[3] = { body[i+1], body[i+2], '\0' };
+            out[n++] = (unsigned char)strtol(h, NULL, 16);
+            i += 3;
+          } else {
+            out[n++] = (unsigned char)body[i++];
+          }
+          break;
+        default:
+          out[n++] = (unsigned char)body[i++];
+          break;
+      }
+    } else {
+      out[n++] = (unsigned char)body[i++];
+    }
+  }
+  return n;
+}
+
+// One entry in the scrambled-string table
+typedef struct {
+  uint64_t       hash;
+  unsigned char *raw;      // decoded original bytes (owned)
+  int            raw_len;
+  uint8_t        xor_key;
+  char           key_hex[20]; // "0x" + 16 hex digits + NUL = 19 chars
+} ScrStr;
+
+typedef struct { ScrStr *d; int n, cap; } ScrArr;
+
+static void scrarr_push(ScrArr *a, ScrStr s) {
+  if (a->n >= a->cap) {
+    a->cap = a->cap ? a->cap * 2 : 16;
+    a->d = (ScrStr *)realloc(a->d, (size_t)a->cap * sizeof(ScrStr));
+  }
+  a->d[a->n++] = s;
+}
+
+static int scrarr_find(const ScrArr *a, uint64_t hash) {
+  for (int i = 0; i < a->n; i++)
+    if (a->d[i].hash == hash) return i;
+  return -1;
+}
+
+static void scrarr_free(ScrArr *a) {
+  for (int i = 0; i < a->n; i++) free(a->d[i].raw);
+  free(a->d);
+}
+
+// Main string-scrambler transform.
+// Does NOT free `content`; caller frees old pointer and keeps the return value.
+static char *scramble_strings(char *content) {
+  TokArr ta = obf_tokenize(content);
+
+  // ------------------------------------------------------------------
+  // 1. Collect unique string literals
+  // ------------------------------------------------------------------
+  ScrArr strs = {0};
+  for (int i = 0; i < ta.n; i++) {
+    OBFTok *tk = &ta.d[i];
+    if (tk->type != OT_STRING) continue;
+    if (tk->len < 2) continue;
+    const char *body = tk->start + 1;
+    int         blen = tk->len  - 2;
+    if (blen == 0) continue; // skip empty strings
+
+    unsigned char *raw = (unsigned char *)malloc((size_t)(blen + 1));
+    if (!raw) continue;
+    int      rlen = decode_string_body(body, blen, raw);
+    uint64_t hash = fnv1a_64((const char *)raw, (size_t)rlen);
+
+    if (scrarr_find(&strs, hash) >= 0) { free(raw); continue; } // already seen
+
+    // XOR key: derive from FNV-32 of the raw content, never zero
+    uint8_t xk = (uint8_t)(fnv1a_32((const char *)raw, (size_t)rlen) & 0xFF);
+    if (xk == 0) xk = 0xA5;
+
+    ScrStr s;
+    s.hash    = hash;
+    s.raw     = raw;
+    s.raw_len = rlen;
+    s.xor_key = xk;
+    snprintf(s.key_hex, sizeof(s.key_hex), "0x%016llx", (unsigned long long)hash);
+    scrarr_push(&strs, s);
+  }
+
+  if (strs.n == 0) { free(ta.d); return content; }
+  printf("Scrambling %d unique string literal(s)\n", strs.n);
+
+  // ------------------------------------------------------------------
+  // 2. Build prologue: hash_map handle + helper functions + init stub
+  // ------------------------------------------------------------------
+  DStr pro;
+  dstr_init(&pro, 8192);
+
+  static const char hdr[] =
+    "// === __str_scramble_helpers ===\n"
+    // Global init trigger: evaluated before any function runs so strings
+    // are available even in other global variable initialisers.
+    "int __gs_init=__init_str_table();\n"
+    // Global hash_map handle: uint64 key -> string value
+    "hash_map@ __str_table;\n"
+    // __dec(bytes, key): XOR-decrypt byte array back to string
+    "string __dec(const array<uint8>&in b,uint8 k){"
+      "string r;r.resize(b.length());"
+      "for(uint i=0;i<b.length();i++){r[i]=b[i]^k;}"
+      "return r;}\n"
+    // __gs(key): look up a scrambled string by its FNV-64 uint64 key
+    "string __gs(uint64 k){"
+      "string v;if(__str_table.get(k,v))return v;return \"\";}\n"
+    "int __init_str_table(){\n"
+    // Construct the hash_map instance
+    "@__str_table=hash_map();\n";
+  dstr_push_n(&pro, hdr, (int)(sizeof(hdr) - 1));
+
+  char buf[32];
+  for (int i = 0; i < strs.n; i++) {
+    ScrStr *s = &strs.d[i];
+    // __str_table.set(0xKEY,__dec({0xNN,...},0xKK));
+    dstr_push_str(&pro, "__str_table.set(");
+    dstr_push_str(&pro, s->key_hex);   // e.g. 0x27af7b24c84db5d7
+    dstr_push_str(&pro, ",__dec({");
+    for (int j = 0; j < s->raw_len; j++) {
+      if (j > 0) dstr_push_c(&pro, ',');
+      snprintf(buf, sizeof(buf), "0x%02x", (unsigned)(s->raw[j] ^ s->xor_key));
+      dstr_push_str(&pro, buf);
+    }
+    snprintf(buf, sizeof(buf), "},0x%02x", (unsigned)s->xor_key);
+    dstr_push_str(&pro, buf);
+    dstr_push_str(&pro, "));\n");
+  }
+  dstr_push_str(&pro, "return 1;\n}\n\n");
+
+  // ------------------------------------------------------------------
+  // 3. Rebuild source: replace string literals + inject init call
+  // ------------------------------------------------------------------
+  DStr out;
+  dstr_init(&out, strlen(content) + 512);
+
+  char prev_ch = 0;
+
+  for (int i = 0; i < ta.n; i++) {
+    OBFTok *tk = &ta.d[i];
+
+    // ---- string literal replacement ----
+    if (tk->type == OT_STRING && tk->len >= 2) {
+      const char *body = tk->start + 1;
+      int         blen = tk->len  - 2;
+      if (blen > 0) {
+        unsigned char *raw = (unsigned char *)malloc((size_t)(blen + 1));
+        if (raw) {
+          int      rlen = decode_string_body(body, blen, raw);
+          uint64_t hash = fnv1a_64((const char *)raw, (size_t)rlen);
+          free(raw);
+          int idx = scrarr_find(&strs, hash);
+          if (idx >= 0) {
+            if (IS_IC(prev_ch)) dstr_push_c(&out, ' ');
+            dstr_push_str(&out, "__gs(");
+            dstr_push_str(&out, strs.d[idx].key_hex); // uint64 hex literal
+            dstr_push_c(&out, ')');
+            prev_ch = ')';
+            continue;
+          }
+        }
+      }
+    }
+
+    // ---- normal emit ----
+    dstr_push_n(&out, tk->start, tk->len);
+    if (tk->len > 0) prev_ch = tk->start[tk->len - 1];
+  }
+
+  // ------------------------------------------------------------------
+  // 4. Final result: prologue prepended to rewritten source
+  // ------------------------------------------------------------------
+  char *final = (char *)malloc(pro.len + out.len + 2);
+  if (!final) {
+    free(pro.d); free(out.d); free(ta.d); scrarr_free(&strs);
+    return content;
+  }
+  memcpy(final,           pro.d, pro.len);
+  memcpy(final + pro.len, out.d, out.len + 1);
+
+  free(ta.d);
+  free(pro.d);
+  free(out.d);
+  scrarr_free(&strs);
+  return final;
+}
+
+// ---------------------------------------------------------------------------
 // Help text
 // ---------------------------------------------------------------------------
 
@@ -1345,6 +1579,9 @@ void print_help(const char *program_name) {
          "                         short names; keep all API / type names\n");
   printf("  --remove-newlines, -R  Collapse whitespace to minimum spaces\n"
          "                         (best combined with --obfuscate)\n");
+  printf("  --scramble-strings, -S Replace string literals with runtime\n"
+         "                         hash-map lookups; values stored as\n"
+         "                         XOR-encrypted byte arrays\n");
   printf("  --help                 Show this help message\n");
   printf("\nBuild timestamp macros (replaced before all other steps):\n");
   printf("  __BUILD_TIMESTAMP_STR__   String: \"YYYY-MM-DD HH:MM:SS\"\n");
@@ -1367,6 +1604,8 @@ void print_help(const char *program_name) {
   printf("  %s -o out.as -p macros.h -H license.txt src/\n", program_name);
   printf("  %s -o out.as --no-preprocess src/\n", program_name);
   printf("  %s -o out.as --obfuscate --remove-newlines src/\n", program_name);
+  printf("  %s -o out.as --obfuscate --scramble-strings --remove-newlines src/\n",
+         program_name);
   printf("\nWithout -o, only validation errors and warnings are displayed.\n");
 }
 
@@ -1516,6 +1755,8 @@ int main(int argc, char **argv) {
       g_obfuscate = 1;
     } else if (strcmp(arg, "--remove-newlines") == 0 || strcmp(arg, "-R") == 0) {
       g_remove_newlines = 1;
+    } else if (strcmp(arg, "--scramble-strings") == 0 || strcmp(arg, "-S") == 0) {
+      g_scramble_strings = 1;
     } else if (strcmp(arg, "-o") == 0) {
       if (i + 1 < argc) {
         output_file = argv[++i];
@@ -1578,6 +1819,7 @@ int main(int argc, char **argv) {
   if (g_skip_preprocess)       printf("Option: Skipping C preprocessor\n");
   if (g_obfuscate)             printf("Option: Obfuscating identifiers\n");
   if (g_remove_newlines)       printf("Option: Removing newlines\n");
+  if (g_scramble_strings)      printf("Option: Scrambling string literals\n");
   if (g_prepend_file[0])       printf("Option: Prepend file: %s\n", g_prepend_file);
   if (g_header_file[0])        printf("Option: Header file: %s\n", g_header_file);
   if (g_define_count > 0) {
@@ -1846,7 +2088,14 @@ int main(int argc, char **argv) {
 
   free(index);
 
-  // --- Step 10b: Obfuscate identifiers ---
+  // --- Step 10b: Scramble string literals ---
+  if (g_scramble_strings && !validation_failed) {
+    char *scrambled = scramble_strings(combined);
+    free(combined);
+    combined = scrambled;
+  }
+
+  // --- Step 10c: Obfuscate identifiers ---
   if (g_obfuscate && !validation_failed) {
     printf("Obfuscating identifiers%s...\n",
            g_remove_newlines ? " and removing newlines" : "");
