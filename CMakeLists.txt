@@ -92,7 +92,15 @@ add_library(as_wrapper
 target_link_libraries(as_wrapper angelscript angelscript_addons)
 
 # Main bundler executable
-add_executable(as_bundler src/main.c)
+add_executable(as_bundler
+    src/main.c
+    src/common/common.c
+    src/fs/fs.c
+    src/processing/processing.c
+    src/preprocessor/preprocessor.c
+    src/obfuscator/obfuscator.c
+    src/errors/errors.c
+)
 target_link_libraries(as_bundler as_wrapper)
 
 # Cross-compile for Windows
