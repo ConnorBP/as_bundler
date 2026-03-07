@@ -100,8 +100,18 @@ add_executable(as_bundler
     src/preprocessor/preprocessor.c
     src/obfuscator/obfuscator.c
     src/errors/errors.c
+    src/commands/cmd_helpers.c
+    src/commands/cmd_restore.c
+    src/commands/cmd_install.c
+    src/commands/cmd_update.c
+    src/commands/cmd_watch.c
 )
 target_link_libraries(as_bundler as_wrapper)
+
+# Link advapi32 on Windows for registry access (used by cmd_helpers.c)
+if(WIN32)
+    target_link_libraries(as_bundler advapi32)
+endif()
 
 # Cross-compile for Windows
 if(MINGW)

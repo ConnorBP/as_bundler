@@ -5,6 +5,7 @@
 #include "preprocessor/preprocessor.h"
 #include "obfuscator/obfuscator.h"
 #include "errors/errors.h"
+#include "commands/commands.h"
 
 /* -------------------------------------------------------------------------
  * Help text
@@ -13,6 +14,12 @@
 static void print_help(const char *program_name) {
     printf("Usage: %s [OPTIONS] <source_dir|file.as> [file2.as ...]\n",
            program_name);
+    printf("       %s <subcommand> [subcommand options]\n", program_name);
+    printf("\nSubcommands:\n");
+    printf("  restore <bundled.as> [out_dir]  Restore source tree from bundled file\n");
+    printf("  install                         Install gcc and register pcx in PATH\n");
+    printf("  update                          Update pcx to the latest GitHub release\n");
+    printf("  watch [options] <src...>        Re-bundle automatically on file save\n");
     printf("\nOptions:\n");
     printf("  -o <file>              Output bundled code to specified file\n");
     printf("  --strip, -s            Strip comment-only lines from output\n");
@@ -62,6 +69,24 @@ static void print_help(const char *program_name) {
  * ---------------------------------------------------------------------- */
 
 int main(int argc, char **argv) {
+    /* ---------------------------------------------------------------
+     * Subcommand dispatch
+     * ------------------------------------------------------------- */
+    if (argc >= 2) {
+        const char *sub = argv[1];
+
+        if (strcmp(sub, "restore") == 0) {
+            /* Pass: argv[1]="restore", argv[2..] = restore args */
+            return cmd_restore(argc - 1, argv + 1);
+        } else if (strcmp(sub, "install") == 0) {
+            return cmd_install(argc - 1, argv + 1);
+        } else if (strcmp(sub, "update") == 0) {
+            return cmd_update(argc - 1, argv + 1);
+        } else if (strcmp(sub, "watch") == 0) {
+            return cmd_watch(argc - 1, argv + 1);
+        }
+    }
+
     const char *output_file = NULL;
 
     /* --- Argument parsing --- */
