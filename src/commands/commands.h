@@ -33,12 +33,15 @@ int cmd_watch(int argc, char **argv);
  * Shared helpers
  * ---------------------------------------------------------------------- */
 
-/* Returns 1 if the bundler executable directory is already on PATH,
- * 0 otherwise. */
+/* Returns 1 if the binary has already been copied to the install directory
+ * (C:\bin\<name> on Windows, /usr/local/bin/<name> on Linux), 0 otherwise. */
 int is_registered_in_path(void);
 
-/* Adds the directory that contains the running executable to the system PATH
- * permanently (registry on Windows, /etc/profile.d on Linux).
+/* Copies the running executable to the platform install directory:
+ *   Windows : C:\bin\<exe_name>  (creates C:\bin if needed, and adds it to
+ *             the system PATH via the registry if not already present)
+ *   Linux   : /usr/local/bin/<exe_name>  (already on PATH everywhere;
+ *             requires write permission, i.e. run with sudo if needed)
  * Returns 0 on success, non-zero on failure. */
 int register_in_path(void);
 
@@ -53,8 +56,13 @@ int install_gcc(void);
  * Returns 0 on success, non-zero on failure. */
 int get_executable_path(char *out);
 
-/* Writes the directory that contains the running executable into `out`.
- * Returns 0 on success, non-zero on failure. */
+/* Writes the directory that contains the running executable into `out`
+ * (size MAX_PATH).  Returns 0 on success, non-zero on failure. */
 int get_executable_dir(char *out);
+
+/* Builds the full install destination path into `out` (size MAX_PATH):
+ *   Windows : C:\bin\<exe_basename>
+ *   Linux   : /usr/local/bin/<exe_basename> */
+void get_install_path(char *out);
 
 #endif /* COMMANDS_H */

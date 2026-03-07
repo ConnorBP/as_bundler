@@ -7,31 +7,33 @@
  *
  * Performs two tasks:
  *   1. Installs gcc if it is not already available.
- *   2. Registers the pcx executable directory in the system PATH so it can
- *      be called from anywhere without specifying the full path.
+ *   2. Copies the pcx executable to the platform install directory so it
+ *      can be called from anywhere without specifying the full path.
  *
  * Platform behaviour:
- *   Windows – PATH is written to the registry (HKLM or HKCU fallback).
+ *   Windows – Copies the binary to C:\bin\<name> (creates C:\bin if needed)
+ *             and adds C:\bin to the system PATH via the registry.
  *             gcc is installed via winget (MSYS2 toolchain).
- *   Linux   – PATH is written to /etc/profile.d/pcx.sh (falls back to
- *             ~/.bashrc / ~/.zshrc).  gcc is installed via the distro's
- *             package manager (apt-get, dnf, pacman, zypper, apk).
+ *   Linux   – Copies the binary to /usr/local/bin/<name> (already on PATH
+ *             on all mainstream distributions; requires sudo if needed).
+ *             gcc is installed via the distro's package manager.
  * ---------------------------------------------------------------------- */
 
 static void print_install_help(void) {
     printf("Usage: pcx install\n"
            "\n"
-           "  Installs gcc (if not already present) and registers the pcx\n"
-           "  executable in your system PATH so it can be invoked from any\n"
-           "  directory.\n"
+           "  Installs gcc (if not already present) and copies the pcx binary\n"
+           "  to a system-wide location so it can be invoked from any directory.\n"
            "\n"
            "  No arguments are required.\n"
            "\n"
-           "  On Windows this writes to the registry and may require\n"
-           "  administrator privileges for a system-wide PATH change.\n"
+           "  On Windows the binary is copied to C:\\bin\\<name> and C:\\bin is\n"
+           "  added to the system PATH via the registry. Run as administrator\n"
+           "  for a system-wide PATH change, otherwise HKCU is used.\n"
            "\n"
-           "  On Linux this writes to /etc/profile.d/pcx.sh (requires root)\n"
-           "  or falls back to the current user's shell profile.\n");
+           "  On Linux the binary is copied to /usr/local/bin/<name> which is\n"
+           "  already on PATH on all mainstream distributions. Run with sudo\n"
+           "  if the copy fails due to insufficient permissions.\n");
 }
 
 int cmd_install(int argc, char **argv) {
@@ -71,24 +73,16 @@ int cmd_install(int argc, char **argv) {
     printf("\n");
 
     /* ------------------------------------------------------------------
-     * Step 2: Register pcx in PATH
+     * Step 2: Install pcx to system bin directory
      * ------------------------------------------------------------------ */
-    printf("=== Registering pcx in PATH ===\n");
-
-    char exe_dir[MAX_PATH];
-    if (get_executable_dir(exe_dir) != 0) {
-        fprintf(stderr, "Error: Could not determine the executable directory.\n");
-        return 1;
-    }
-
-    printf("Executable directory: %s\n", exe_dir);
+    printf("=== Installing pcx ===\n");
 
     if (is_registered_in_path()) {
-        printf("pcx is already registered in PATH.\n");
+        printf("pcx is already installed.\n");
     } else {
         if (register_in_path() != 0) {
-            fprintf(stderr, "Warning: Could not register pcx in PATH "
-                            "(see above for manual steps).\n");
+            fprintf(stderr, "Warning: Could not install pcx "
+                            "(see above for details).\n");
             overall_ok = 0;
         }
     }

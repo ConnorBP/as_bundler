@@ -5,6 +5,23 @@
 #else
 #include <unistd.h>
 #include <limits.h>
+#include <sys/stat.h>
+#endif
+
+/* -------------------------------------------------------------------------
+ * Install directories
+ *
+ * Windows : C:\bin\<exe_name>   (C:\bin is a conventional user-managed bin
+ *           directory that is easy to add to PATH once and forget)
+ * Linux   : /usr/local/bin/<exe_name>  (standard system-wide location,
+ *           already on PATH on every mainstream distribution)
+ * ---------------------------------------------------------------------- */
+#ifdef _WIN32
+#  define INSTALL_DIR   "C:\\bin"
+#  define INSTALL_DIR_DISPLAY "C:\\bin"
+#else
+#  define INSTALL_DIR   "/usr/local/bin"
+#  define INSTALL_DIR_DISPLAY "/usr/local/bin"
 #endif
 
 /* -------------------------------------------------------------------------
@@ -21,7 +38,7 @@ int get_executable_path(char *out) {
 #else
     ssize_t len = readlink("/proc/self/exe", out, MAX_PATH - 1);
     if (len < 0) {
-        /* Fallback: try /proc/curproc/file (FreeBSD) or argv[0] via realpath */
+        /* Fallback: FreeBSD */
         len = readlink("/proc/curproc/file", out, MAX_PATH - 1);
     }
     if (len < 0)
@@ -44,7 +61,6 @@ int get_executable_dir(char *out) {
     strncpy(out, exe_path, MAX_PATH - 1);
     out[MAX_PATH - 1] = '\0';
 
-    /* Strip filename – find last separator */
     char *last = NULL;
     for (char *p = out; *p; p++)
         if (*p == '/' || *p == '\\')
@@ -59,216 +75,254 @@ int get_executable_dir(char *out) {
 }
 
 /* -------------------------------------------------------------------------
- * is_registered_in_path
- * Returns 1 if the directory containing the executable is already in PATH.
+ * get_exe_basename
+ * Extracts just the filename (with extension) from a full path into `out`.
  * ---------------------------------------------------------------------- */
-int is_registered_in_path(void) {
-    char exe_dir[MAX_PATH];
-    if (get_executable_dir(exe_dir) != 0)
-        return 0;
-
-    const char *path_env = getenv("PATH");
-    if (!path_env)
-        return 0;
-
-    /* Walk the PATH entries */
-    char path_copy[4096];
-    strncpy(path_copy, path_env, sizeof(path_copy) - 1);
-    path_copy[sizeof(path_copy) - 1] = '\0';
-
-#ifdef _WIN32
-    const char *delim = ";";
-#else
-    const char *delim = ":";
-#endif
-
-    char *token = strtok(path_copy, delim);
-    while (token) {
-        /* Normalise trailing separator */
-        char entry[MAX_PATH];
-        strncpy(entry, token, MAX_PATH - 1);
-        entry[MAX_PATH - 1] = '\0';
-        size_t elen = strlen(entry);
-        if (elen > 0 && (entry[elen - 1] == '/' || entry[elen - 1] == '\\'))
-            entry[--elen] = '\0';
-
-#ifdef _WIN32
-        if (_stricmp(entry, exe_dir) == 0)
-            return 1;
-#else
-        if (strcmp(entry, exe_dir) == 0)
-            return 1;
-#endif
-        token = strtok(NULL, delim);
-    }
-    return 0;
+static void get_exe_basename(const char *exe_path, char *out) {
+    const char *last = exe_path;
+    for (const char *p = exe_path; *p; p++)
+        if (*p == '/' || *p == '\\')
+            last = p + 1;
+    strncpy(out, last, MAX_PATH - 1);
+    out[MAX_PATH - 1] = '\0';
 }
 
 /* -------------------------------------------------------------------------
- * register_in_path  (Windows)
- * Adds the executable directory to the SYSTEM PATH via the registry key
- * HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment.
- * Falls back to the USER PATH (HKCU) if the process lacks admin rights.
- * Broadcasts WM_SETTINGCHANGE so open shells pick up the change.
+ * copy_file
+ * Copies the file at `src` to `dst`, overwriting if it already exists.
+ * Returns 0 on success, 1 on failure.
  * ---------------------------------------------------------------------- */
+static int copy_file(const char *src, const char *dst) {
 #ifdef _WIN32
-static int register_in_path_windows(const char *exe_dir) {
+    if (!CopyFileA(src, dst, FALSE)) {
+        fprintf(stderr, "Error: Could not copy '%s' to '%s' (code %lu)\n",
+                src, dst, (unsigned long)GetLastError());
+        return 1;
+    }
+    return 0;
+#else
+    FILE *in = fopen(src, "rb");
+    if (!in) {
+        fprintf(stderr, "Error: Could not open source '%s': ", src);
+        perror(NULL);
+        return 1;
+    }
+
+    FILE *out = fopen(dst, "wb");
+    if (!out) {
+        fprintf(stderr, "Error: Could not open destination '%s': ", dst);
+        perror(NULL);
+        fclose(in);
+        return 1;
+    }
+
+    char buf[65536];
+    size_t n;
+    int ok = 1;
+    while ((n = fread(buf, 1, sizeof(buf), in)) > 0) {
+        if (fwrite(buf, 1, n, out) != n) {
+            fprintf(stderr, "Error: Write failed to '%s'\n", dst);
+            ok = 0;
+            break;
+        }
+    }
+
+    fclose(in);
+    fclose(out);
+
+    if (!ok) return 1;
+
+    /* Make the installed binary executable */
+    if (chmod(dst, 0755) != 0) {
+        fprintf(stderr, "Warning: Could not set executable bit on '%s'\n", dst);
+        /* Non-fatal */
+    }
+
+    return 0;
+#endif
+}
+
+/* -------------------------------------------------------------------------
+ * get_install_path
+ * Builds the full destination path: <INSTALL_DIR>/<exe_basename>
+ * ---------------------------------------------------------------------- */
+void get_install_path(char *out) {
+    char exe_path[MAX_PATH];
+    char basename[MAX_PATH];
+
+    if (get_executable_path(exe_path) != 0) {
+        /* Fallback name */
+#ifdef _WIN32
+        snprintf(out, MAX_PATH, "%s\\pcx.exe", INSTALL_DIR);
+#else
+        snprintf(out, MAX_PATH, "%s/pcx", INSTALL_DIR);
+#endif
+        return;
+    }
+
+    get_exe_basename(exe_path, basename);
+
+#ifdef _WIN32
+    snprintf(out, MAX_PATH, "%s\\%s", INSTALL_DIR, basename);
+#else
+    snprintf(out, MAX_PATH, "%s/%s", INSTALL_DIR, basename);
+#endif
+}
+
+/* -------------------------------------------------------------------------
+ * is_registered_in_path
+ * Returns 1 if the binary has already been copied to the install directory.
+ * ---------------------------------------------------------------------- */
+int is_registered_in_path(void) {
+    char install_path[MAX_PATH];
+    get_install_path(install_path);
+
+#ifdef _WIN32
+    DWORD attrs = GetFileAttributesA(install_path);
+    return (attrs != INVALID_FILE_ATTRIBUTES &&
+            !(attrs & FILE_ATTRIBUTE_DIRECTORY)) ? 1 : 0;
+#else
+    return (access(install_path, F_OK) == 0) ? 1 : 0;
+#endif
+}
+
+/* -------------------------------------------------------------------------
+ * register_in_path
+ *
+ * Windows : Creates C:\bin\ if needed, then copies the running executable
+ *           there.  Also adds C:\bin to the user PATH via the registry if
+ *           it isn't already present, since C:\bin is not a default PATH
+ *           entry on Windows.
+ * Linux   : Copies the running executable to /usr/local/bin/<name> (which
+ *           is already on PATH on all mainstream distributions).  Falls back
+ *           with an error message if the copy fails due to permissions.
+ *
+ * Returns 0 on success, non-zero on failure.
+ * ---------------------------------------------------------------------- */
+int register_in_path(void) {
+    char exe_path[MAX_PATH];
+    if (get_executable_path(exe_path) != 0) {
+        fprintf(stderr, "Error: Could not determine the current executable path.\n");
+        return 1;
+    }
+
+    char install_path[MAX_PATH];
+    get_install_path(install_path);
+
+#ifdef _WIN32
+    /* ---------------------------------------------------------------
+     * Create C:\bin if it doesn't exist yet
+     * ------------------------------------------------------------- */
+    DWORD dir_attrs = GetFileAttributesA(INSTALL_DIR);
+    if (dir_attrs == INVALID_FILE_ATTRIBUTES) {
+        if (!CreateDirectoryA(INSTALL_DIR, NULL)) {
+            fprintf(stderr,
+                    "Error: Could not create install directory '%s' (code %lu).\n"
+                    "Try running as administrator.\n",
+                    INSTALL_DIR, (unsigned long)GetLastError());
+            return 1;
+        }
+        printf("Created directory: %s\n", INSTALL_DIR);
+    }
+
+    /* ---------------------------------------------------------------
+     * Copy the binary
+     * ------------------------------------------------------------- */
+    printf("Installing to: %s\n", install_path);
+    if (copy_file(exe_path, install_path) != 0)
+        return 1;
+    printf("Installed successfully.\n");
+
+    /* ---------------------------------------------------------------
+     * Ensure C:\bin is on the user PATH in the registry.
+     * C:\bin is not a default Windows PATH entry so we add it once.
+     * ------------------------------------------------------------- */
     const char *reg_key =
         "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment";
-
-    HKEY  hkey  = NULL;
+    HKEY  hkey = NULL;
     LONG  res;
     DWORD dtype = REG_EXPAND_SZ;
 
-    /* Try HKLM first (requires admin) */
+    /* Try HKLM (system-wide, requires admin) first */
     res = RegOpenKeyExA(HKEY_LOCAL_MACHINE, reg_key, 0,
                         KEY_READ | KEY_WRITE, &hkey);
     if (res != ERROR_SUCCESS) {
-        /* Fall back to HKCU */
+        /* Fall back to HKCU (current user only) */
         res = RegOpenKeyExA(HKEY_CURRENT_USER, "Environment", 0,
                             KEY_READ | KEY_WRITE, &hkey);
         if (res != ERROR_SUCCESS) {
-            fprintf(stderr, "Error: Could not open registry PATH key (code %ld)\n",
-                    res);
-            return 1;
+            fprintf(stderr,
+                    "Warning: Could not open registry PATH key (code %ld).\n"
+                    "Please add '%s' to your PATH manually.\n",
+                    res, INSTALL_DIR);
+            /* Binary is still copied – non-fatal */
+            return 0;
         }
-        dtype = REG_EXPAND_SZ;
     }
 
-    /* Read existing PATH value */
-    char   old_path[8192] = {0};
-    DWORD  old_size       = sizeof(old_path);
-    DWORD  old_type       = REG_EXPAND_SZ;
+    /* Read existing PATH */
+    char  old_path[8192] = {0};
+    DWORD old_size = sizeof(old_path);
+    DWORD old_type = REG_EXPAND_SZ;
     RegQueryValueExA(hkey, "Path", NULL, &old_type,
                      (LPBYTE)old_path, &old_size);
 
-    /* Check if already present (case-insensitive on Windows) */
-    char check[MAX_PATH];
-    strncpy(check, old_path, MAX_PATH - 1);
-    check[MAX_PATH - 1] = '\0';
+    /* Check whether C:\bin is already present (case-insensitive) */
+    char check[8192];
+    strncpy(check, old_path, sizeof(check) - 1);
+    check[sizeof(check) - 1] = '\0';
+    for (char *p = check; *p; p++) *p = (char)tolower((unsigned char)*p);
 
-    /* Simple substring search */
-    char *p = check;
-    while (*p) { *p = (char)tolower((unsigned char)*p); p++; }
-    char lower_dir[MAX_PATH];
-    strncpy(lower_dir, exe_dir, MAX_PATH - 1);
-    lower_dir[MAX_PATH - 1] = '\0';
-    for (char *q = lower_dir; *q; q++) *q = (char)tolower((unsigned char)*q);
+    char lower_dir[] = "c:\\bin";  /* INSTALL_DIR lowercased */
 
-    if (strstr(check, lower_dir)) {
-        printf("Executable directory already in PATH.\n");
-        RegCloseKey(hkey);
-        return 0;
+    if (!strstr(check, lower_dir)) {
+        char new_path[8192];
+        size_t old_len = strlen(old_path);
+        if (old_len > 0 && old_path[old_len - 1] != ';')
+            snprintf(new_path, sizeof(new_path), "%s;%s", old_path, INSTALL_DIR);
+        else
+            snprintf(new_path, sizeof(new_path), "%s%s", old_path, INSTALL_DIR);
+
+        res = RegSetValueExA(hkey, "Path", 0, dtype,
+                             (const BYTE *)new_path,
+                             (DWORD)(strlen(new_path) + 1));
+        if (res == ERROR_SUCCESS) {
+            /* Notify open shells */
+            DWORD_PTR notify_result = 0;
+            SendMessageTimeoutA(HWND_BROADCAST, WM_SETTINGCHANGE, 0,
+                                (LPARAM)"Environment", SMTO_ABORTIFHUNG,
+                                5000, &notify_result);
+            printf("Added '%s' to system PATH.\n", INSTALL_DIR);
+        } else {
+            fprintf(stderr,
+                    "Warning: Could not write PATH to registry (code %ld).\n"
+                    "Please add '%s' to your PATH manually.\n",
+                    res, INSTALL_DIR);
+        }
+    } else {
+        printf("'%s' is already in PATH.\n", INSTALL_DIR);
     }
 
-    /* Append the new directory */
-    char new_path[8192];
-    size_t old_len = strlen(old_path);
-    if (old_len > 0 && old_path[old_len - 1] != ';')
-        snprintf(new_path, sizeof(new_path), "%s;%s", old_path, exe_dir);
-    else
-        snprintf(new_path, sizeof(new_path), "%s%s", old_path, exe_dir);
-
-    res = RegSetValueExA(hkey, "Path", 0, dtype,
-                         (const BYTE *)new_path,
-                         (DWORD)(strlen(new_path) + 1));
     RegCloseKey(hkey);
-
-    if (res != ERROR_SUCCESS) {
-        fprintf(stderr,
-                "Error: Could not write PATH to registry (code %ld)\n", res);
-        return 1;
-    }
-
-    /* Notify the system */
-    DWORD_PTR result = 0;
-    SendMessageTimeoutA(HWND_BROADCAST, WM_SETTINGCHANGE, 0,
-                        (LPARAM)"Environment", SMTO_ABORTIFHUNG, 5000,
-                        &result);
-
-    printf("Added to system PATH: %s\n", exe_dir);
     printf("Note: You may need to restart your terminal for PATH changes to take effect.\n");
     return 0;
-}
-#endif /* _WIN32 */
 
-/* -------------------------------------------------------------------------
- * register_in_path  (Linux / macOS)
- * Writes an export line to /etc/profile.d/pcx.sh (system-wide, requires
- * root).  Falls back to ~/.bashrc and ~/.zshrc for the current user.
- * ---------------------------------------------------------------------- */
-#ifndef _WIN32
-static int register_in_path_linux(const char *exe_dir) {
-    /* Try system-wide first */
-    const char *system_profile = "/etc/profile.d/pcx.sh";
-    FILE *f = fopen(system_profile, "a");
-    if (f) {
-        fprintf(f, "\nexport PATH=\"%s:$PATH\"\n", exe_dir);
-        fclose(f);
-        /* Make it executable */
-        chmod(system_profile, 0644);
-        printf("Added to system PATH via %s\n", system_profile);
-        printf("Note: Restart your terminal or run: source %s\n",
-               system_profile);
-        return 0;
-    }
-
-    /* Fall back to user profiles */
-    int written = 0;
-    const char *home = getenv("HOME");
-    if (!home) {
-        fprintf(stderr, "Error: $HOME not set; cannot write shell profile\n");
-        return 1;
-    }
-
-    const char *profiles[] = { ".bashrc", ".zshrc", ".profile", NULL };
-    for (int i = 0; profiles[i]; i++) {
-        char profile_path[MAX_PATH];
-        snprintf(profile_path, MAX_PATH, "%s/%s", home, profiles[i]);
-
-        /* Only append to files that already exist */
-        FILE *pf = fopen(profile_path, "r");
-        if (!pf) continue;
-        fclose(pf);
-
-        pf = fopen(profile_path, "a");
-        if (!pf) continue;
-        fprintf(pf, "\n# Added by pcx installer\nexport PATH=\"%s:$PATH\"\n",
-                exe_dir);
-        fclose(pf);
-        printf("Added to PATH via ~/%s\n", profiles[i]);
-        written = 1;
-    }
-
-    if (!written) {
-        fprintf(stderr,
-                "Error: Could not write to any shell profile.\n"
-                "Please add the following line to your shell profile manually:\n"
-                "  export PATH=\"%s:$PATH\"\n", exe_dir);
-        return 1;
-    }
-
-    printf("Note: Restart your terminal or source your shell profile for the change to take effect.\n");
-    return 0;
-}
-#endif /* !_WIN32 */
-
-int register_in_path(void) {
-    char exe_dir[MAX_PATH];
-    if (get_executable_dir(exe_dir) != 0) {
-        fprintf(stderr, "Error: Could not determine executable directory\n");
-        return 1;
-    }
-
-    if (is_registered_in_path()) {
-        printf("Executable directory is already in PATH.\n");
-        return 0;
-    }
-
-#ifdef _WIN32
-    return register_in_path_windows(exe_dir);
 #else
-    return register_in_path_linux(exe_dir);
+    /* ---------------------------------------------------------------
+     * Linux: copy to /usr/local/bin (already on PATH everywhere)
+     * ------------------------------------------------------------- */
+    printf("Installing to: %s\n", install_path);
+
+    if (copy_file(exe_path, install_path) != 0) {
+        fprintf(stderr,
+                "Note: If the copy failed due to permissions, try running with sudo:\n"
+                "  sudo pcx install\n");
+        return 1;
+    }
+
+    printf("Installed successfully.\n");
+    printf("The binary is now available as a system command.\n");
+    return 0;
 #endif
 }
 
@@ -289,11 +343,10 @@ int is_gcc_available(void) {
  * install_gcc
  * Installs gcc using the platform's official package manager / installer.
  *
- * Windows : Downloads and installs the latest winlibs GCC standalone build
- *           (MinGW-w64 / MSVCRT) via PowerShell + the official winlibs
- *           archive – no external package manager required.
- * Linux   : Uses the distribution's package manager (apt, dnf, pacman, zypper
- *           or apk), whichever is found first.
+ * Windows : Uses winget to install the MSYS2 toolchain (official Microsoft
+ *           package manager, ships with Windows 10 1709+ / Windows 11).
+ * Linux   : Uses the distro's package manager (apt-get, dnf, yum, pacman,
+ *           zypper, or apk), whichever is found first.
  *
  * Returns 0 on success, non-zero on failure.
  * ---------------------------------------------------------------------- */
@@ -301,14 +354,10 @@ int install_gcc(void) {
     printf("Installing gcc...\n");
 
 #ifdef _WIN32
-    /*
-     * Use winget (available on Windows 10 1709+ / Windows 11) to install
-     * the official MSYS2 toolchain, which provides up-to-date GCC.
-     * winget is the official Microsoft package manager shipped with Windows.
-     */
     printf("Attempting to install GCC via winget (MSYS2 toolchain)...\n");
 
-    int ret = system("winget install --id MSYS2.MSYS2 --silent --accept-package-agreements --accept-source-agreements");
+    int ret = system("winget install --id MSYS2.MSYS2 --silent "
+                     "--accept-package-agreements --accept-source-agreements");
     if (ret == 0) {
         printf("\nMSYS2 installed successfully.\n");
         printf("To complete GCC setup, open the MSYS2 terminal and run:\n");
@@ -317,46 +366,42 @@ int install_gcc(void) {
         return 0;
     }
 
-    /* winget not available – print manual instructions */
     fprintf(stderr,
             "\nwinget is not available on this system.\n"
             "Please install GCC manually:\n"
             "\n"
-            "  Option 1 – MSYS2 (recommended):\n"
+            "  Option 1 - MSYS2 (recommended):\n"
             "    1. Download from https://www.msys2.org/\n"
             "    2. Install MSYS2, open the MSYS2 MinGW 64-bit terminal\n"
             "    3. Run: pacman -S --noconfirm mingw-w64-x86_64-gcc\n"
             "    4. Add C:\\msys64\\mingw64\\bin to your PATH\n"
             "\n"
-            "  Option 2 – winlibs standalone:\n"
+            "  Option 2 - winlibs standalone:\n"
             "    Download from https://winlibs.com/ and extract to C:\\mingw64\n"
             "    then add C:\\mingw64\\bin to your PATH\n");
     return 1;
 
 #else
-    /* Try common Linux package managers in order of popularity */
-    struct { const char *test; const char *cmd; const char *name; } managers[] = {
-        /* Debian / Ubuntu */
+    struct {
+        const char *test;
+        const char *cmd;
+        const char *name;
+    } managers[] = {
         { "apt-get --version >/dev/null 2>&1",
           "apt-get update && apt-get install -y gcc",
           "apt-get" },
-        /* Fedora / RHEL / CentOS */
         { "dnf --version >/dev/null 2>&1",
           "dnf install -y gcc",
           "dnf" },
-        /* CentOS 7 / older RHEL */
         { "yum --version >/dev/null 2>&1",
           "yum install -y gcc",
           "yum" },
-        /* Arch Linux */
         { "pacman --version >/dev/null 2>&1",
           "pacman -S --noconfirm gcc",
           "pacman" },
-        /* openSUSE */
         { "zypper --version >/dev/null 2>&1",
           "zypper install -y gcc",
           "zypper" },
-        /* Alpine */
         { "apk --version >/dev/null 2>&1",
           "apk add --no-cache gcc",
           "apk" },
