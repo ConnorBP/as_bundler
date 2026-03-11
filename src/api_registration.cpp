@@ -375,7 +375,8 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 
 	// proc_t virtual memory analysis
 	r = engine->RegisterObjectMethod("proc_t", "bool virtual_query(uint64, uint64 &out, uint64 &out, uint32 &out, bool &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("proc_t", "void get_vad_snapshot(bool, array<dictionary>@ &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	// r = engine->RegisterObjectMethod("proc_t", "void get_vad_snapshot(bool, array<dictionary>@ &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "array<dictionary@>@ get_vad_snapshot(bool) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// proc_t memory scan helpers
 	r = engine->RegisterObjectMethod("proc_t", "void scan_bytes(const array<uint8> &in, array<uint64> &out, bool) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
@@ -1487,6 +1488,9 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("void mm_cmpeq_epi8(const array<uint8> &in, const array<uint8> &in, array<uint8> &out)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void mm_cmpeq_epi16(const array<uint8> &in, const array<uint8> &in, array<uint8> &out)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void mm_cmpeq_epi32(const array<uint8> &in, const array<uint8> &in, array<uint8> &out)", asFUNCTION(StubFunction), asCALL_CDECL);
+
+
+	r = engine->RegisterGlobalFunction("bool unreal_world_to_screen(const vector3 &in world_pos, const vector3 &in cam_location, const vector3 &in cam_rotation, double fov_deg, vector2 &out screen_pos)", asFUNCTION(StubFunction), asCALL_CDECL);
 
 	// =====================================================
 	// CONSTANTS
