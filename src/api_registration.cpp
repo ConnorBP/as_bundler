@@ -5,7 +5,6 @@
 #include "../include/angelscript/include/angelscript.h"
 #include <stdio.h>
 #include <cassert>
-#include <string>
 
 typedef unsigned int uint;
 

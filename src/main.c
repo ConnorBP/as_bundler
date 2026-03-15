@@ -288,13 +288,6 @@ int main(int argc, char **argv) {
         printf("Preprocessor complete\n");
     }
 
-    /* --- Step 7: Strip comments --- */
-    if (g_strip_comments) {
-        char *stripped = strip_comments(combined);
-        free(combined);
-        combined = stripped;
-    }
-
     /* --- Step 8: Convert #pragma BUNDLER_FILE markers to // === ... === --- */
     combined = convert_pragma_markers(combined);
 
@@ -434,6 +427,13 @@ int main(int argc, char **argv) {
     if (errors->error_count > 0) fprintf(stderr, "\n");
 
     free(index);
+
+    /* --- Step 10a: Strip comments --- */
+    if (g_strip_comments && !validation_failed) {
+        char *stripped = strip_comments(combined);
+        free(combined);
+        combined = stripped;
+    }
 
     /* --- Step 10b: Scramble string literals --- */
     if (g_scramble_strings && !validation_failed) {
