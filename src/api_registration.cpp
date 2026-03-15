@@ -1388,15 +1388,15 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("float u32_to_f(uint)", asFUNCTION(StubFunction), asCALL_CDECL);
 
 	// JSON API
-	r = engine->RegisterGlobalFunction("dictionary@ json_parse(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool json_parse(const string &in text, dictionary &out result, string &out error)", asFUNCTION(StubFunction), asCALL_CDECL);
 	if (r < 0) printf("WARNING: Failed to register json_parse (code: %d)\n", r);
 
-	r = engine->RegisterGlobalFunction("string json_stringify(const dictionary &in)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool json_stringify(const dictionary &in value, string &out json, string &out error)", asFUNCTION(StubFunction), asCALL_CDECL);
 	if (r < 0) printf("WARNING: Failed to register json_stringify (code: %d)\n", r);
 
 	// JSON API alternative function names (aliases)
-	r = engine->RegisterGlobalFunction("bool json_decode(const string &in, dictionary &out, string &out)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("bool json_encode(const dictionary &in, string &out, string &out)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool json_decode(const string &in text, dictionary &out result, string &out error)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool json_encode(const dictionary &in value, string &out json, string &out error)", asFUNCTION(StubFunction), asCALL_CDECL);
 
 	// =====================================================
 	// INTRINSICS API - Bit Rotation
