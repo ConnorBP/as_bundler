@@ -1490,13 +1490,27 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("void mm_cmpeq_epi32(const array<uint8> &in, const array<uint8> &in, array<uint8> &out)", asFUNCTION(StubFunction), asCALL_CDECL);
 
 
-	// ====================================================
+	// =====================================================
 	// Unreal Engine specific functions
-	// ====================================================
+	// =====================================================
+
 	r = engine->RegisterGlobalFunction("bool unreal_world_to_screen(const vector3 &in world_pos, const vector3 &in cam_location, const vector3 &in cam_rotation, double fov_deg, vector2 &out screen_pos)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool unreal_read_tarray(proc_t &in proc, uint64 tarray_addr, array<uint64> &out result, uint max_count = 4096)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool unreal_read_minimal_view_info(proc_t &in proc, uint64 pov_addr, vector3 &out location, vector3 &out rotation, double &out fov)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool unreal_read_minimal_view_info_f64(proc_t &in proc, uint64 pov_addr, vector3 &out location, vector3 &out rotation, double &out fov)", asFUNCTION(StubFunction), asCALL_CDECL);
+
+	// =====================================================
+	// Sound API
+	// =====================================================
+
+	r = engine->RegisterGlobalFunction("uint64 load_sound(const string &in path)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void free_sound(uint64 handle)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("uint64 play_sound(uint64 sound, float volume = 1.0, float pan = 0.0, bool loop = false)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void stop_sound(uint64 instance)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void stop_all_sounds()", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool is_sound_playing(uint64 instance)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void set_sound_volume(uint64 instance, float volume)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void set_sound_pan(uint64 instance, float pan)", asFUNCTION(StubFunction), asCALL_CDECL);
 
 	// =====================================================
 	// CONSTANTS
