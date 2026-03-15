@@ -5,7 +5,6 @@
 #include "../include/angelscript/include/angelscript.h"
 #include <stdio.h>
 #include <cassert>
-#include <string>
 
 typedef unsigned int uint;
 
@@ -203,7 +202,7 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectMethod("matrix4x4", "void readas_double(proc_t &in, uint64)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("matrix4x4", "bool writeas_float(proc_t &in, uint64) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("matrix4x4", "bool writeas_double(proc_t &in, uint64) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("matrix4x4", "double opIndex(int) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("matrix4x4", "double &opIndex(int)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	if (r < 0) printf("WARNING: Failed to register matrix4x4::opIndex (code: %d)\n", r);
 
 	// atomic_int32
@@ -375,7 +374,8 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 
 	// proc_t virtual memory analysis
 	r = engine->RegisterObjectMethod("proc_t", "bool virtual_query(uint64, uint64 &out, uint64 &out, uint32 &out, bool &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("proc_t", "void get_vad_snapshot(bool, array<dictionary>@ &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	// r = engine->RegisterObjectMethod("proc_t", "void get_vad_snapshot(bool, array<dictionary>@ &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "array<dictionary@>@ get_vad_snapshot(bool) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// proc_t memory scan helpers
 	r = engine->RegisterObjectMethod("proc_t", "void scan_bytes(const array<uint8> &in, array<uint64> &out, bool) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
@@ -1268,6 +1268,8 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	// Window operations
 	r = engine->RegisterGlobalFunction("uint64 find_window(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
 	if (r < 0) printf("WARNING: Failed to register find_window (code: %d)\n", r);
+	r = engine->RegisterGlobalFunction("uint64 find_window(const string &in title, const string &in className)", asFUNCTION(StubFunction), asCALL_CDECL);
+	if (r < 0) printf("WARNING: Failed to register find_window (code: %d)\n", r);
 
 	r = engine->RegisterGlobalFunction("uint64 find_window_ex(const string &in, const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
 	if (r < 0) printf("WARNING: Failed to register find_window_ex (code: %d)\n", r);
@@ -1487,6 +1489,29 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("void mm_cmpeq_epi8(const array<uint8> &in, const array<uint8> &in, array<uint8> &out)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void mm_cmpeq_epi16(const array<uint8> &in, const array<uint8> &in, array<uint8> &out)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void mm_cmpeq_epi32(const array<uint8> &in, const array<uint8> &in, array<uint8> &out)", asFUNCTION(StubFunction), asCALL_CDECL);
+
+
+	// =====================================================
+	// Unreal Engine specific functions
+	// =====================================================
+
+	r = engine->RegisterGlobalFunction("bool unreal_world_to_screen(const vector3 &in world_pos, const vector3 &in cam_location, const vector3 &in cam_rotation, double fov_deg, vector2 &out screen_pos)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool unreal_read_tarray(proc_t &in proc, uint64 tarray_addr, array<uint64> &out result, uint max_count = 4096)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool unreal_read_minimal_view_info(proc_t &in proc, uint64 pov_addr, vector3 &out location, vector3 &out rotation, double &out fov)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool unreal_read_minimal_view_info_f64(proc_t &in proc, uint64 pov_addr, vector3 &out location, vector3 &out rotation, double &out fov)", asFUNCTION(StubFunction), asCALL_CDECL);
+
+	// =====================================================
+	// Sound API
+	// =====================================================
+
+	r = engine->RegisterGlobalFunction("uint64 load_sound(const string &in path)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void free_sound(uint64 handle)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("uint64 play_sound(uint64 sound, float volume = 1.0, float pan = 0.0, bool loop = false)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void stop_sound(uint64 instance)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void stop_all_sounds()", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool is_sound_playing(uint64 instance)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void set_sound_volume(uint64 instance, float volume)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void set_sound_pan(uint64 instance, float pan)", asFUNCTION(StubFunction), asCALL_CDECL);
 
 	// =====================================================
 	// CONSTANTS

@@ -41,6 +41,7 @@ extern "C" {
 void* as_validator_create(void) {
 	ValidatorContext* ctx = new ValidatorContext();
 	ctx->engine = asCreateScriptEngine();
+	ctx->engine->SetEngineProperty(asEP_INIT_GLOBAL_VARS_AFTER_BUILD, false);
 
 	if (!ctx->engine) {
 		delete ctx;

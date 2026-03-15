@@ -4,6 +4,15 @@ project(as_bundler)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_STANDARD 11)
 
+# Get current git tag for versioning
+execute_process(
+    COMMAND git describe --tags --always
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+add_definitions(-DBUNDLER_VERSION="${GIT_VERSION}")
+
 # AngelScript paths
 set(ANGELSCRIPT_DIR "${CMAKE_SOURCE_DIR}/include/angelscript")
 set(ADDONS_DIR "${CMAKE_SOURCE_DIR}/include/add_on")
@@ -92,8 +101,26 @@ add_library(as_wrapper
 target_link_libraries(as_wrapper angelscript angelscript_addons)
 
 # Main bundler executable
-add_executable(as_bundler src/main.c)
+add_executable(as_bundler
+    src/main.c
+    src/common/common.c
+    src/fs/fs.c
+    src/processing/processing.c
+    src/preprocessor/preprocessor.c
+    src/obfuscator/obfuscator.c
+    src/errors/errors.c
+    src/commands/cmd_helpers.c
+    src/commands/cmd_restore.c
+    src/commands/cmd_install.c
+    src/commands/cmd_update.c
+    src/commands/cmd_watch.c
+)
 target_link_libraries(as_bundler as_wrapper)
+
+# Link advapi32 on Windows for registry access (used by cmd_helpers.c)
+if(WIN32)
+    target_link_libraries(as_bundler advapi32)
+endif()
 
 # Cross-compile for Windows
 if(MINGW)
