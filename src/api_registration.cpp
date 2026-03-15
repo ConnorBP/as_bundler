@@ -202,7 +202,7 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectMethod("matrix4x4", "void readas_double(proc_t &in, uint64)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("matrix4x4", "bool writeas_float(proc_t &in, uint64) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("matrix4x4", "bool writeas_double(proc_t &in, uint64) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("matrix4x4", "double opIndex(int) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("matrix4x4", "double &opIndex(int)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	if (r < 0) printf("WARNING: Failed to register matrix4x4::opIndex (code: %d)\n", r);
 
 	// atomic_int32
@@ -1267,6 +1267,8 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 
 	// Window operations
 	r = engine->RegisterGlobalFunction("uint64 find_window(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
+	if (r < 0) printf("WARNING: Failed to register find_window (code: %d)\n", r);
+	r = engine->RegisterGlobalFunction("uint64 find_window(const string &in title, const string &in className)", asFUNCTION(StubFunction), asCALL_CDECL);
 	if (r < 0) printf("WARNING: Failed to register find_window (code: %d)\n", r);
 
 	r = engine->RegisterGlobalFunction("uint64 find_window_ex(const string &in, const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
