@@ -7,6 +7,10 @@
 #include <sys/stat.h>
 #endif
 
+#ifndef BUNDLER_VERSION
+#define BUNDLER_VERSION "unknown"
+#endif
+
 /* -------------------------------------------------------------------------
  * cmd_update
  *
@@ -385,6 +389,55 @@ static ReleaseInfo fetch_latest_prerelease(void) {
 }
 
 /* -------------------------------------------------------------------------
+ * parse_version
+ * Basic semantic version parser. Expects "v1.2.3" or "1.2.3".
+ * ---------------------------------------------------------------------- */
+static int parse_version(const char *v, int *maj, int *min, int *patch, int *commits) {
+    *maj = 0; *min = 0; *patch = 0; *commits = 0;
+    while (*v && (*v < '0' || *v > '9')) v++;
+    if (!*v) return 0;
+    *maj = atoi(v);
+    while (*v >= '0' && *v <= '9') v++;
+    if (*v == '.') v++;
+    *min = atoi(v);
+    while (*v >= '0' && *v <= '9') v++;
+    if (*v == '.') v++;
+    *patch = atoi(v);
+    while (*v >= '0' && *v <= '9') v++;
+    if (*v == '-') {
+        v++;
+        *commits = atoi(v);
+    }
+    return 1;
+}
+
+/* -------------------------------------------------------------------------
+ * is_newer_version
+ * Returns 1 if 'remote' is newer than 'local', 0 otherwise.
+ * ---------------------------------------------------------------------- */
+static int is_newer_version(const char *remote, const char *local) {
+    int rm=0, rmi=0, rp=0, rc=0;
+    int lm=0, lmi=0, lp=0, lc=0;
+    
+    if (!parse_version(remote, &rm, &rmi, &rp, &rc)) return 1; 
+    if (!parse_version(local, &lm, &lmi, &lp, &lc)) return 1; 
+
+    if (rm > lm) return 1;
+    if (rm < lm) return 0;
+    
+    if (rmi > lmi) return 1;
+    if (rmi < lmi) return 0;
+    
+    if (rp > lp) return 1;
+    if (rp < lp) return 0;
+
+    if (rc > lc) return 1; 
+    if (rc < lc) return 0; 
+    
+    return 0; 
+}
+
+/* -------------------------------------------------------------------------
  * pick_newer
  * Compares two ReleaseInfo structs by published_at (ISO 8601 string –
  * lexicographic comparison is correct for this format).
@@ -559,6 +612,11 @@ int cmd_update(int argc, char **argv) {
     printf("  Selected             : %s%s\n\n",
            chosen->tag_name,
            chosen->prerelease ? " (pre-release)" : "");
+
+    if (!is_newer_version(chosen->tag_name, BUNDLER_VERSION)) {
+        printf("You already have the latest version (%s). No update needed.\n", BUNDLER_VERSION);
+        return 0;
+    }
 
     /* ------------------------------------------------------------------
      * Step 5: Download the asset to a temp file

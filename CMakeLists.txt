@@ -4,6 +4,15 @@ project(as_bundler)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_STANDARD 11)
 
+# Get current git tag for versioning
+execute_process(
+    COMMAND git describe --tags --always
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+add_definitions(-DBUNDLER_VERSION="${GIT_VERSION}")
+
 # AngelScript paths
 set(ANGELSCRIPT_DIR "${CMAKE_SOURCE_DIR}/include/angelscript")
 set(ADDONS_DIR "${CMAKE_SOURCE_DIR}/include/add_on")

@@ -11,6 +11,10 @@
  * Help text
  * ---------------------------------------------------------------------- */
 
+#ifndef BUNDLER_VERSION
+#define BUNDLER_VERSION "unknown"
+#endif
+
 static void print_help(const char *program_name) {
     printf("Usage: %s [OPTIONS] <source_dir|file.as> [file2.as ...]\n",
            program_name);
@@ -21,6 +25,7 @@ static void print_help(const char *program_name) {
     printf("  update                          Update pcx to the latest GitHub release\n");
     printf("  watch [options] <src...>        Re-bundle automatically on file save\n");
     printf("\nOptions:\n");
+    printf("  -v, --version          Print the bundler version\n");
     printf("  -o <file>              Output bundled code to specified file\n");
     printf("  --strip, -s            Strip comment-only lines from output\n");
     printf("  --no-preprocess, -n    Skip the C preprocessor step\n");
@@ -96,6 +101,9 @@ int main(int argc, char **argv) {
 
         if (strcmp(arg, "--help") == 0) {
             print_help(argv[0]);
+            return 0;
+        } else if (strcmp(arg, "-v") == 0 || strcmp(arg, "--version") == 0) {
+            printf("%s\n", BUNDLER_VERSION);
             return 0;
         } else if (strcmp(arg, "--strip") == 0 || strcmp(arg, "-s") == 0) {
             g_strip_comments = 1;
