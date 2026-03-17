@@ -572,6 +572,43 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("void custom_reset_render_target()", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void custom_bind_rt_as_texture(uint64 rt, int slot)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void custom_restore_state()", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("uint64 create_index_buffer(uint max_indices, bool use_32bit, bool dynamic)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void   destroy_index_buffer(uint64 ib)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void custom_draw_indexed(uint64 shader, uint64 vb, const array<uint8> &in vertex_data, uint vertex_count, uint64 ib, const array<uint8> &in index_data, uint index_count, int topology, uint64 blend, uint64 sampler, uint64 texture, int tex_slot, uint64 cb, const array<uint8> @cb_data, int cb_slot)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("uint64 create_depth_stencil_state(bool depth_enable, bool depth_write, int compare_func)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void   destroy_depth_stencil_state(uint64 ds)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void   custom_set_depth_stencil_state(uint64 ds)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("uint64 create_rasterizer_state(int cull_mode, int fill_mode, bool scissor_enable)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void   destroy_rasterizer_state(uint64 rs)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void   custom_set_rasterizer_state(uint64 rs)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void custom_set_viewport(float x, float y, float w, float h)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void custom_reset_viewport()", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void custom_bind_texture(uint64 texture, uint64 sampler, int slot)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("uint64 create_compute_shader(const string &in cs_source)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void   destroy_compute_shader(uint64 cs)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void   dispatch_compute(uint64 cs, uint x, uint y, uint z)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("uint64 create_structured_buffer(uint element_size, uint element_count, bool cpu_write, bool gpu_write)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void   destroy_structured_buffer(uint64 sb)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void   update_structured_buffer(uint64 sb, const array<uint8> &in data)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void   bind_structured_buffer(uint64 sb, int slot, int stage)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void capture_backbuffer(int slot)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("uint64 load_texture_mem(const array<uint8> &in data)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("uint64 load_texture(const string &in path)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void   get_texture_info(uint64 tex, float &out w, float &out h)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("uint64 load_mesh_mem(const array<uint8> &in data)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("uint64 load_mesh(const string &in path)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void   get_mesh_info(uint64 mesh, float &out vert_count, float &out index_count, float &out min_x, float &out min_y, float &out min_z, float &out max_x, float &out max_y, float &out max_z)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void   destroy_mesh(uint64 mesh)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void draw_mesh(uint64 mesh, uint64 shader, int topology, uint64 blend, uint64 sampler, uint64 texture, int tex_slot, uint64 cb, const array<uint8> @cb_data, int cb_slot)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("uint64 create_depth_buffer(uint width, uint height)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void   destroy_depth_buffer(uint64 db)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void   custom_set_render_target_ext(uint64 rt, uint64 depth_buffer)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void   custom_clear_render_target(uint64 rt, float r, float g, float b, float a)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void   custom_clear_depth_buffer(uint64 db)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void custom_bind_constant_buffer(uint64 cb, const array<uint8> &in data, int slot, int stage)1", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("uint64 create_mesh_raw(const array<uint8> &in vertex_data, uint vertex_count, uint stride, const array<uint8> &in index_data, uint index_count, bool use_32bit)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("float  get_mesh_stride(uint64 mesh)", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void custom_update_texture(uint64 tex, uint x, uint y, uint w, uint h, const array<uint8> &in rgba_data)", asFUNCTION(StubFunction), asCALL_CDECL);
 
 	// Extended Math API - Global functions
 	r = engine->RegisterGlobalFunction("double clamp(double, double, double)", asFUNCTION(StubFunction), asCALL_CDECL);
@@ -1393,6 +1430,25 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
     static const int ADDRESS_CLAMP = 31;
     static const int ADDRESS_MIRROR = 32;
     static const int ADDRESS_BORDER = 33;
+
+    static const int CMP_NEVER = 34;
+    static const int CMP_LESS = 35;
+    static const int CMP_EQUAL = 36;
+    static const int CMP_LESS_EQUAL = 37;
+    static const int CMP_GREATER = 38;
+    static const int CMP_NOT_EQUAL = 39;
+    static const int CMP_GREATER_EQUAL = 40;
+    static const int CMP_ALWAYS = 41;
+
+    static const int CULL_NONE = 42;
+    static const int CULL_FRONT = 43;
+    static const int CULL_BACK = 44;
+    static const int FILL_SOLID = 45;
+    static const int FILL_WIREFRAME = 46;
+
+    static const int STAGE_VS = 47;
+    static const int STAGE_PS = 48;
+    static const int STAGE_CS = 49;
     r = engine->RegisterGlobalProperty("const int TOPO_TRIANGLE_LIST", (void*)&TOPO_TRIANGLE_LIST);
     r = engine->RegisterGlobalProperty("const int TOPO_TRIANGLE_STRIP", (void*)&TOPO_TRIANGLE_STRIP);
     r = engine->RegisterGlobalProperty("const int TOPO_LINE_LIST", (void*)&TOPO_LINE_LIST);
@@ -1431,4 +1487,23 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
     r = engine->RegisterGlobalProperty("const int ADDRESS_CLAMP", (void*)&ADDRESS_CLAMP);
     r = engine->RegisterGlobalProperty("const int ADDRESS_MIRROR", (void*)&ADDRESS_MIRROR);
     r = engine->RegisterGlobalProperty("const int ADDRESS_BORDER", (void*)&ADDRESS_BORDER);
+
+    r = engine->RegisterGlobalProperty("const int CMP_NEVER", (void*)&CMP_NEVER);
+    r = engine->RegisterGlobalProperty("const int CMP_LESS", (void*)&CMP_LESS);
+    r = engine->RegisterGlobalProperty("const int CMP_EQUAL", (void*)&CMP_EQUAL);
+    r = engine->RegisterGlobalProperty("const int CMP_LESS_EQUAL", (void*)&CMP_LESS_EQUAL);
+    r = engine->RegisterGlobalProperty("const int CMP_GREATER", (void*)&CMP_GREATER);
+    r = engine->RegisterGlobalProperty("const int CMP_NOT_EQUAL", (void*)&CMP_NOT_EQUAL);
+    r = engine->RegisterGlobalProperty("const int CMP_GREATER_EQUAL", (void*)&CMP_GREATER_EQUAL);
+    r = engine->RegisterGlobalProperty("const int CMP_ALWAYS", (void*)&CMP_ALWAYS);
+
+    r = engine->RegisterGlobalProperty("const int CULL_NONE", (void*)&CULL_NONE);
+    r = engine->RegisterGlobalProperty("const int CULL_FRONT", (void*)&CULL_FRONT);
+    r = engine->RegisterGlobalProperty("const int CULL_BACK", (void*)&CULL_BACK);
+    r = engine->RegisterGlobalProperty("const int FILL_SOLID", (void*)&FILL_SOLID);
+    r = engine->RegisterGlobalProperty("const int FILL_WIREFRAME", (void*)&FILL_WIREFRAME);
+
+    r = engine->RegisterGlobalProperty("const int STAGE_VS", (void*)&STAGE_VS);
+    r = engine->RegisterGlobalProperty("const int STAGE_PS", (void*)&STAGE_PS);
+    r = engine->RegisterGlobalProperty("const int STAGE_CS", (void*)&STAGE_CS);
 }
