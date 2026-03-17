@@ -226,6 +226,7 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectMethod("proc_t", "uint64 peb() const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("proc_t", "uint pid() const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("proc_t", "bool alive() const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "bool is_valid_address(uint64 address) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// proc_t read methods
 	r = engine->RegisterObjectMethod("proc_t", "uint8 ru8(uint64) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
@@ -306,6 +307,7 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectMethod("proc_t", "void scan_u64(uint64, array<uint64> &out, bool) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("proc_t", "void scan_all_u32(array<uint64> &out, bool) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("proc_t", "void scan_all_u64(array<uint64> &out, bool) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "array<uint64>@ scan_pointer(uint64 target, bool heap_only = false) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// ws_t methods
 	r = engine->RegisterObjectMethod("ws_t", "bool send_text(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
