@@ -850,6 +850,36 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("uint64 create_bitmap(const array<uint8> &in)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void draw_bitmap(uint64, float, float, float, float, uint8, uint8, uint8, uint8, bool)", asFUNCTION(StubFunction), asCALL_CDECL);
 
+	// Render API - Direct/Custom Draw (D3D11 pipeline access)
+	// -- Shaders
+	r = engine->RegisterGlobalFunction("uint64 create_shader(const string &in, const string &in, const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void destroy_shader(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	// -- Vertex Buffers
+	r = engine->RegisterGlobalFunction("uint64 create_vertex_buffer(uint, uint, bool)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void destroy_vertex_buffer(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	// -- Constant Buffers
+	r = engine->RegisterGlobalFunction("uint64 create_constant_buffer(uint)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void destroy_constant_buffer(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	// -- Blend States
+	r = engine->RegisterGlobalFunction("uint64 create_blend_state(int, int, int, int, int, int)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void destroy_blend_state(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	// -- Samplers
+	r = engine->RegisterGlobalFunction("uint64 create_sampler(int, int, int)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void destroy_sampler(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	// -- Textures
+	r = engine->RegisterGlobalFunction("uint64 create_texture(uint, uint, const array<uint8> &in)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void destroy_texture(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	// -- Render Targets
+	r = engine->RegisterGlobalFunction("uint64 create_render_target(uint, uint)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void destroy_render_target(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	// -- Draw Call
+	r = engine->RegisterGlobalFunction("void custom_draw(uint64, uint64, const array<uint8> &in, uint, int, uint64, uint64, uint64, int, uint64, const array<uint8> @, int)", asFUNCTION(StubFunction), asCALL_CDECL);
+	// -- Render Target Control
+	r = engine->RegisterGlobalFunction("void custom_set_render_target(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void custom_reset_render_target()", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void custom_bind_rt_as_texture(uint64, int)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void custom_restore_state()", asFUNCTION(StubFunction), asCALL_CDECL);
+
 	// Extended Math API - Global functions
 	r = engine->RegisterGlobalFunction("double clamp(double, double, double)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("double saturate(double)", asFUNCTION(StubFunction), asCALL_CDECL);
@@ -1537,6 +1567,90 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalProperty("const double M_PI_4", (void*)&M_PI_4);
 	r = engine->RegisterGlobalProperty("const double RAD2DEG", (void*)&RAD2DEG);
 	r = engine->RegisterGlobalProperty("const double DEG2RAD", (void*)&DEG2RAD);
+
+	// Direct render API constants - Topology
+	static const int TOPO_TRIANGLE_LIST  = 0;
+	static const int TOPO_TRIANGLE_STRIP = 1;
+	static const int TOPO_LINE_LIST      = 2;
+	static const int TOPO_LINE_STRIP     = 3;
+	static const int TOPO_POINT_LIST     = 4;
+
+	r = engine->RegisterGlobalProperty("const int TOPO_TRIANGLE_LIST",  (void*)&TOPO_TRIANGLE_LIST);
+	r = engine->RegisterGlobalProperty("const int TOPO_TRIANGLE_STRIP", (void*)&TOPO_TRIANGLE_STRIP);
+	r = engine->RegisterGlobalProperty("const int TOPO_LINE_LIST",      (void*)&TOPO_LINE_LIST);
+	r = engine->RegisterGlobalProperty("const int TOPO_LINE_STRIP",     (void*)&TOPO_LINE_STRIP);
+	r = engine->RegisterGlobalProperty("const int TOPO_POINT_LIST",     (void*)&TOPO_POINT_LIST);
+
+	// Direct render API constants - Blend Factors
+	static const int BLEND_ZERO          = 0;
+	static const int BLEND_ONE           = 1;
+	static const int BLEND_SRC_ALPHA     = 2;
+	static const int BLEND_INV_SRC_ALPHA = 3;
+	static const int BLEND_DEST_ALPHA    = 4;
+	static const int BLEND_INV_DEST_ALPHA= 5;
+	static const int BLEND_SRC_COLOR     = 6;
+	static const int BLEND_INV_SRC_COLOR = 7;
+	static const int BLEND_DEST_COLOR    = 8;
+	static const int BLEND_INV_DEST_COLOR= 9;
+
+	r = engine->RegisterGlobalProperty("const int BLEND_ZERO",           (void*)&BLEND_ZERO);
+	r = engine->RegisterGlobalProperty("const int BLEND_ONE",            (void*)&BLEND_ONE);
+	r = engine->RegisterGlobalProperty("const int BLEND_SRC_ALPHA",      (void*)&BLEND_SRC_ALPHA);
+	r = engine->RegisterGlobalProperty("const int BLEND_INV_SRC_ALPHA",  (void*)&BLEND_INV_SRC_ALPHA);
+	r = engine->RegisterGlobalProperty("const int BLEND_DEST_ALPHA",     (void*)&BLEND_DEST_ALPHA);
+	r = engine->RegisterGlobalProperty("const int BLEND_INV_DEST_ALPHA", (void*)&BLEND_INV_DEST_ALPHA);
+	r = engine->RegisterGlobalProperty("const int BLEND_SRC_COLOR",      (void*)&BLEND_SRC_COLOR);
+	r = engine->RegisterGlobalProperty("const int BLEND_INV_SRC_COLOR",  (void*)&BLEND_INV_SRC_COLOR);
+	r = engine->RegisterGlobalProperty("const int BLEND_DEST_COLOR",     (void*)&BLEND_DEST_COLOR);
+	r = engine->RegisterGlobalProperty("const int BLEND_INV_DEST_COLOR", (void*)&BLEND_INV_DEST_COLOR);
+
+	// Direct render API constants - Blend Operations
+	static const int BLEND_OP_ADD         = 0;
+	static const int BLEND_OP_SUBTRACT    = 1;
+	static const int BLEND_OP_REV_SUBTRACT= 2;
+	static const int BLEND_OP_MIN         = 3;
+	static const int BLEND_OP_MAX         = 4;
+
+	r = engine->RegisterGlobalProperty("const int BLEND_OP_ADD",          (void*)&BLEND_OP_ADD);
+	r = engine->RegisterGlobalProperty("const int BLEND_OP_SUBTRACT",     (void*)&BLEND_OP_SUBTRACT);
+	r = engine->RegisterGlobalProperty("const int BLEND_OP_REV_SUBTRACT", (void*)&BLEND_OP_REV_SUBTRACT);
+	r = engine->RegisterGlobalProperty("const int BLEND_OP_MIN",          (void*)&BLEND_OP_MIN);
+	r = engine->RegisterGlobalProperty("const int BLEND_OP_MAX",          (void*)&BLEND_OP_MAX);
+
+	// Direct render API constants - Vertex Layout Element Types
+	static const int ELEM_FLOAT1      = 0;
+	static const int ELEM_FLOAT2      = 1;
+	static const int ELEM_FLOAT3      = 2;
+	static const int ELEM_FLOAT4      = 3;
+	static const int ELEM_BYTE4_UNORM = 4;
+	static const int ELEM_UINT1       = 5;
+
+	r = engine->RegisterGlobalProperty("const int ELEM_FLOAT1",      (void*)&ELEM_FLOAT1);
+	r = engine->RegisterGlobalProperty("const int ELEM_FLOAT2",      (void*)&ELEM_FLOAT2);
+	r = engine->RegisterGlobalProperty("const int ELEM_FLOAT3",      (void*)&ELEM_FLOAT3);
+	r = engine->RegisterGlobalProperty("const int ELEM_FLOAT4",      (void*)&ELEM_FLOAT4);
+	r = engine->RegisterGlobalProperty("const int ELEM_BYTE4_UNORM", (void*)&ELEM_BYTE4_UNORM);
+	r = engine->RegisterGlobalProperty("const int ELEM_UINT1",       (void*)&ELEM_UINT1);
+
+	// Direct render API constants - Texture Filter Modes
+	static const int FILTER_POINT       = 0;
+	static const int FILTER_LINEAR      = 1;
+	static const int FILTER_ANISOTROPIC = 2;
+
+	r = engine->RegisterGlobalProperty("const int FILTER_POINT",       (void*)&FILTER_POINT);
+	r = engine->RegisterGlobalProperty("const int FILTER_LINEAR",      (void*)&FILTER_LINEAR);
+	r = engine->RegisterGlobalProperty("const int FILTER_ANISOTROPIC", (void*)&FILTER_ANISOTROPIC);
+
+	// Direct render API constants - Texture Address Modes
+	static const int ADDRESS_WRAP   = 0;
+	static const int ADDRESS_CLAMP  = 1;
+	static const int ADDRESS_MIRROR = 2;
+	static const int ADDRESS_BORDER = 3;
+
+	r = engine->RegisterGlobalProperty("const int ADDRESS_WRAP",   (void*)&ADDRESS_WRAP);
+	r = engine->RegisterGlobalProperty("const int ADDRESS_CLAMP",  (void*)&ADDRESS_CLAMP);
+	r = engine->RegisterGlobalProperty("const int ADDRESS_MIRROR", (void*)&ADDRESS_MIRROR);
+	r = engine->RegisterGlobalProperty("const int ADDRESS_BORDER", (void*)&ADDRESS_BORDER);
 
 	// Text effect constants
 	static const int TE_NONE = 0;
