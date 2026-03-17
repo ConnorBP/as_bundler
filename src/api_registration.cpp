@@ -880,6 +880,69 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("void custom_bind_rt_as_texture(uint64, int)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void custom_restore_state()", asFUNCTION(StubFunction), asCALL_CDECL);
 
+	// -- Index Buffers
+	r = engine->RegisterGlobalFunction("uint64 create_index_buffer(uint, bool, bool)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void destroy_index_buffer(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void custom_draw_indexed(uint64, uint64, const array<uint8> &in, uint, uint64, const array<uint8> &in, uint, int, uint64, uint64, uint64, int, uint64, const array<uint8> @, int)", asFUNCTION(StubFunction), asCALL_CDECL);
+
+	// -- Depth / Stencil
+	r = engine->RegisterGlobalFunction("uint64 create_depth_stencil_state(bool, bool, int)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void destroy_depth_stencil_state(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void custom_set_depth_stencil_state(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("uint64 create_depth_buffer(uint, uint)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void destroy_depth_buffer(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void custom_set_render_target_ext(uint64, uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void custom_clear_render_target(uint64, float, float, float, float)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void custom_clear_depth_buffer(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+
+	// -- Rasterizer State
+	r = engine->RegisterGlobalFunction("uint64 create_rasterizer_state(int, int, bool)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void destroy_rasterizer_state(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void custom_set_rasterizer_state(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+
+	// -- Viewport
+	r = engine->RegisterGlobalFunction("void custom_set_viewport(float, float, float, float)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void custom_reset_viewport()", asFUNCTION(StubFunction), asCALL_CDECL);
+
+	// -- Multi-Texture Binding
+	r = engine->RegisterGlobalFunction("void custom_bind_texture(uint64, uint64, int)", asFUNCTION(StubFunction), asCALL_CDECL);
+
+	// -- Compute Shaders
+	r = engine->RegisterGlobalFunction("uint64 create_compute_shader(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void destroy_compute_shader(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void dispatch_compute(uint64, uint, uint, uint)", asFUNCTION(StubFunction), asCALL_CDECL);
+
+	// -- Structured Buffers
+	r = engine->RegisterGlobalFunction("uint64 create_structured_buffer(uint, uint, bool, bool)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void destroy_structured_buffer(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void update_structured_buffer(uint64, const array<uint8> &in)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void bind_structured_buffer(uint64, int, int)", asFUNCTION(StubFunction), asCALL_CDECL);
+
+	// -- Backbuffer Capture
+	r = engine->RegisterGlobalFunction("void capture_backbuffer(int)", asFUNCTION(StubFunction), asCALL_CDECL);
+
+	// -- Texture Loading
+	r = engine->RegisterGlobalFunction("uint64 load_texture(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("uint64 load_texture_mem(const array<uint8> &in)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void get_texture_info(uint64, float &out, float &out)", asFUNCTION(StubFunction), asCALL_CDECL);
+
+	// -- Mesh Loading
+	r = engine->RegisterGlobalFunction("uint64 load_mesh(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("uint64 load_mesh_mem(const array<uint8> &in)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void get_mesh_info(uint64, float &out, float &out, float &out, float &out, float &out, float &out, float &out, float &out)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void destroy_mesh(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void draw_mesh(uint64, uint64, int, uint64, uint64, uint64, int, uint64, const array<uint8> @, int)", asFUNCTION(StubFunction), asCALL_CDECL);
+
+	// -- Procedural Mesh
+	r = engine->RegisterGlobalFunction("uint64 create_mesh_raw(const array<uint8> &in, uint, uint, const array<uint8> &in, uint, bool)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("float get_mesh_stride(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+
+	// -- Multi Constant Buffer Binding
+	r = engine->RegisterGlobalFunction("void custom_bind_constant_buffer(uint64, const array<uint8> @, int, int)", asFUNCTION(StubFunction), asCALL_CDECL);
+
+	// -- Dynamic Texture Updates
+	r = engine->RegisterGlobalFunction("void custom_update_texture(uint64, uint, uint, uint, uint, const array<uint8> &in)", asFUNCTION(StubFunction), asCALL_CDECL);
+
 	// Extended Math API - Global functions
 	r = engine->RegisterGlobalFunction("double clamp(double, double, double)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("double saturate(double)", asFUNCTION(StubFunction), asCALL_CDECL);
@@ -1651,6 +1714,50 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalProperty("const int ADDRESS_CLAMP",  (void*)&ADDRESS_CLAMP);
 	r = engine->RegisterGlobalProperty("const int ADDRESS_MIRROR", (void*)&ADDRESS_MIRROR);
 	r = engine->RegisterGlobalProperty("const int ADDRESS_BORDER", (void*)&ADDRESS_BORDER);
+
+	// Direct render API constants - Compare Functions (depth/stencil)
+	static const int CMP_NEVER         = 0;
+	static const int CMP_LESS          = 1;
+	static const int CMP_EQUAL         = 2;
+	static const int CMP_LESS_EQUAL    = 3;
+	static const int CMP_GREATER       = 4;
+	static const int CMP_NOT_EQUAL     = 5;
+	static const int CMP_GREATER_EQUAL = 6;
+	static const int CMP_ALWAYS        = 7;
+
+	r = engine->RegisterGlobalProperty("const int CMP_NEVER",         (void*)&CMP_NEVER);
+	r = engine->RegisterGlobalProperty("const int CMP_LESS",          (void*)&CMP_LESS);
+	r = engine->RegisterGlobalProperty("const int CMP_EQUAL",         (void*)&CMP_EQUAL);
+	r = engine->RegisterGlobalProperty("const int CMP_LESS_EQUAL",    (void*)&CMP_LESS_EQUAL);
+	r = engine->RegisterGlobalProperty("const int CMP_GREATER",       (void*)&CMP_GREATER);
+	r = engine->RegisterGlobalProperty("const int CMP_NOT_EQUAL",     (void*)&CMP_NOT_EQUAL);
+	r = engine->RegisterGlobalProperty("const int CMP_GREATER_EQUAL", (void*)&CMP_GREATER_EQUAL);
+	r = engine->RegisterGlobalProperty("const int CMP_ALWAYS",        (void*)&CMP_ALWAYS);
+
+	// Direct render API constants - Cull Modes
+	static const int CULL_NONE  = 0;
+	static const int CULL_FRONT = 1;
+	static const int CULL_BACK  = 2;
+
+	r = engine->RegisterGlobalProperty("const int CULL_NONE",  (void*)&CULL_NONE);
+	r = engine->RegisterGlobalProperty("const int CULL_FRONT", (void*)&CULL_FRONT);
+	r = engine->RegisterGlobalProperty("const int CULL_BACK",  (void*)&CULL_BACK);
+
+	// Direct render API constants - Fill Modes
+	static const int FILL_SOLID     = 0;
+	static const int FILL_WIREFRAME = 1;
+
+	r = engine->RegisterGlobalProperty("const int FILL_SOLID",     (void*)&FILL_SOLID);
+	r = engine->RegisterGlobalProperty("const int FILL_WIREFRAME", (void*)&FILL_WIREFRAME);
+
+	// Direct render API constants - Shader Stages
+	static const int STAGE_VS = 0;
+	static const int STAGE_PS = 1;
+	static const int STAGE_CS = 2;
+
+	r = engine->RegisterGlobalProperty("const int STAGE_VS", (void*)&STAGE_VS);
+	r = engine->RegisterGlobalProperty("const int STAGE_PS", (void*)&STAGE_PS);
+	r = engine->RegisterGlobalProperty("const int STAGE_CS", (void*)&STAGE_CS);
 
 	// Text effect constants
 	static const int TE_NONE = 0;
