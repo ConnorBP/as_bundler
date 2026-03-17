@@ -605,7 +605,7 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
     r = engine->RegisterGlobalFunction("void   custom_set_render_target_ext(uint64 rt, uint64 depth_buffer)", asFUNCTION(StubFunction), asCALL_CDECL);
     r = engine->RegisterGlobalFunction("void   custom_clear_render_target(uint64 rt, float r, float g, float b, float a)", asFUNCTION(StubFunction), asCALL_CDECL);
     r = engine->RegisterGlobalFunction("void   custom_clear_depth_buffer(uint64 db)", asFUNCTION(StubFunction), asCALL_CDECL);
-    r = engine->RegisterGlobalFunction("void custom_bind_constant_buffer(uint64 cb, const array<uint8> &in data, int slot, int stage)1", asFUNCTION(StubFunction), asCALL_CDECL);
+    r = engine->RegisterGlobalFunction("void custom_bind_constant_buffer(uint64 cb, const array<uint8> &in data, int slot, int stage)", asFUNCTION(StubFunction), asCALL_CDECL);
     r = engine->RegisterGlobalFunction("uint64 create_mesh_raw(const array<uint8> &in vertex_data, uint vertex_count, uint stride, const array<uint8> &in index_data, uint index_count, bool use_32bit)", asFUNCTION(StubFunction), asCALL_CDECL);
     r = engine->RegisterGlobalFunction("float  get_mesh_stride(uint64 mesh)", asFUNCTION(StubFunction), asCALL_CDECL);
     r = engine->RegisterGlobalFunction("void custom_update_texture(uint64 tex, uint x, uint y, uint w, uint h, const array<uint8> &in rgba_data)", asFUNCTION(StubFunction), asCALL_CDECL);
