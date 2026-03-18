@@ -622,9 +622,16 @@ char *scramble_strings(char *content) {
             else if (ch == ';') { const_pending = 0; }
         }
 
-        /* Defer 'const' at global scope so we can strip it later if needed */
+        /* Defer 'const' so we can strip it later if the initialiser turns out
+         * to be a scrambled string.  We track it at any brace depth because
+         * AngelScript disallows function-call initialisers for const variables
+         * at global scope AND at namespace/class scope (any depth outside a
+         * function body).  Stripping const from a local variable is also safe:
+         * it just relaxes the read-only constraint, which never breaks runtime
+         * behaviour.  const_pending is cleared on '{' so it never fires inside
+         * a function body's brace. */
         if (tk->type == OT_IDENT && tk->len == 5 &&
-            strncmp(tk->start, "const", 5) == 0 && brace_depth == 0) {
+            strncmp(tk->start, "const", 5) == 0) {
             const_pending      = 1;
             prev_before_const  = prev_ch;
             const_out_start    = out.len;
