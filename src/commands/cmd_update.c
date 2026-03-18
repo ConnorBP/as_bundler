@@ -333,7 +333,7 @@ static ReleaseInfo fetch_latest_release(void) {
     char url[512];
     snprintf(url, sizeof(url), "%s/releases/latest", GITHUB_API_BASE);
 
-    printf("  Querying latest release...\n");
+    // printf("  Querying latest release...\n");
     char *json = fetch_url_to_buffer(url);
     if (!json) {
         fprintf(stderr, "Error: Failed to fetch %s\n", url);
@@ -360,7 +360,7 @@ static ReleaseInfo fetch_latest_prerelease(void) {
     snprintf(url, sizeof(url),
              "%s/releases?per_page=10", GITHUB_API_BASE);
 
-    printf("  Querying latest pre-release...\n");
+    // printf("  Querying latest pre-release...\n");
     char *json = fetch_url_to_buffer(url);
     if (!json) {
         fprintf(stderr, "Error: Failed to fetch %s\n", url);
@@ -418,23 +418,23 @@ static int parse_version(const char *v, int *maj, int *min, int *patch, int *com
 static int is_newer_version(const char *remote, const char *local) {
     int rm=0, rmi=0, rp=0, rc=0;
     int lm=0, lmi=0, lp=0, lc=0;
-    
-    if (!parse_version(remote, &rm, &rmi, &rp, &rc)) return 1; 
-    if (!parse_version(local, &lm, &lmi, &lp, &lc)) return 1; 
+
+    if (!parse_version(remote, &rm, &rmi, &rp, &rc)) return 1;
+    if (!parse_version(local, &lm, &lmi, &lp, &lc)) return 1;
 
     if (rm > lm) return 1;
     if (rm < lm) return 0;
-    
+
     if (rmi > lmi) return 1;
     if (rmi < lmi) return 0;
-    
+
     if (rp > lp) return 1;
     if (rp < lp) return 0;
 
-    if (rc > lc) return 1; 
-    if (rc < lc) return 0; 
-    
-    return 0; 
+    if (rc > lc) return 1;
+    if (rc < lc) return 0;
+
+    return 0;
 }
 
 /* -------------------------------------------------------------------------
@@ -537,10 +537,7 @@ int cmd_update(int argc, char **argv) {
     /* ------------------------------------------------------------------
      * Step 1: Ensure gcc is installed
      * ------------------------------------------------------------------ */
-    printf("=== Checking for gcc ===\n");
-    if (is_gcc_available()) {
-        printf("gcc is already installed.\n");
-    } else {
+    if (!is_gcc_available()) {
         printf("gcc not found - installing...\n");
         if (install_gcc() != 0) {
             fprintf(stderr, "Warning: gcc installation failed or requires manual steps.\n");
@@ -551,23 +548,20 @@ int cmd_update(int argc, char **argv) {
             else
                 printf("Note: gcc may require a terminal restart to appear on PATH.\n");
         }
+        printf("\n");
     }
-    printf("\n");
 
     /* ------------------------------------------------------------------
      * Step 2: Ensure pcx binary is installed
      * ------------------------------------------------------------------ */
-    printf("=== Checking pcx installation ===\n");
-    if (is_registered_in_path()) {
-        printf("pcx is already installed.\n");
-    } else {
+    if (!is_registered_in_path()) {
         printf("pcx not installed - installing now...\n");
         if (register_in_path() != 0) {
             fprintf(stderr, "Warning: Could not install pcx automatically.\n");
             overall_ok = 0;
         }
+        printf("\n");
     }
-    printf("\n");
 
     /* ------------------------------------------------------------------
      * Step 3: Determine the install path – always the fixed system bin
@@ -581,7 +575,7 @@ int cmd_update(int argc, char **argv) {
     /* ------------------------------------------------------------------
      * Step 4: Query GitHub API for newest release (full or pre-release)
      * ------------------------------------------------------------------ */
-    printf("=== Querying GitHub for latest release ===\n");
+    printf("Getting latest release\n");
 
     ReleaseInfo full_release = fetch_latest_release();
     ReleaseInfo pre_release  = fetch_latest_prerelease();
@@ -597,21 +591,22 @@ int cmd_update(int argc, char **argv) {
         return 1;
     }
 
-    printf("\n  Latest full release  : %s",
-           full_release.valid ? full_release.tag_name : "(none found)");
-    if (full_release.valid)
-        printf("  (%s)", full_release.published_at);
-    printf("\n");
+    // printf("\n  Latest full release  : %s",
+    //        full_release.valid ? full_release.tag_name : "(none found)");
+    // if (full_release.valid)
+    //     printf("  (%s)", full_release.published_at);
+    // printf("\n");
 
-    printf("  Latest pre-release   : %s",
-           pre_release.valid ? pre_release.tag_name : "(none found)");
-    if (pre_release.valid)
-        printf("  (%s)", pre_release.published_at);
-    printf("\n");
+    // printf("  Latest pre-release   : %s",
+    //        pre_release.valid ? pre_release.tag_name : "(none found)");
+    // if (pre_release.valid)
+    //     printf("  (%s)", pre_release.published_at);
+    // printf("\n");
 
-    printf("  Selected             : %s%s\n\n",
-           chosen->tag_name,
-           chosen->prerelease ? " (pre-release)" : "");
+    // printf("Selected: %s%s\n\n",
+    //        chosen->tag_name,
+    //        chosen->prerelease ? " (pre-release)" : "");
+    printf("\n");
 
     if (!is_newer_version(chosen->tag_name, BUNDLER_VERSION)) {
         printf("You already have the latest version (%s). No update needed.\n", BUNDLER_VERSION);
@@ -621,8 +616,8 @@ int cmd_update(int argc, char **argv) {
     /* ------------------------------------------------------------------
      * Step 5: Download the asset to a temp file
      * ------------------------------------------------------------------ */
-    printf("=== Downloading %s ===\n", ASSET_NAME);
-    printf("  URL  : %s\n", chosen->asset_url);
+    // printf("=== Downloading %s ===\n", ASSET_NAME);
+    // printf("  URL  : %s\n", chosen->asset_url);
 
     /* Write the temp file next to the install destination so that the
      * final rename/move stays on the same filesystem (avoids cross-device
@@ -636,7 +631,7 @@ int cmd_update(int argc, char **argv) {
     unlink(tmp_path);
 #endif
 
-    printf("  Dest : %s\n\n", tmp_path);
+    // printf("  Dest : %s\n\n", tmp_path);
 
     if (fetch_url_to_file(chosen->asset_url, tmp_path, 1) != 0) {
         fprintf(stderr,
@@ -646,7 +641,7 @@ int cmd_update(int argc, char **argv) {
                 GITHUB_REPO_BASE, chosen->tag_name);
         return 1;
     }
-    printf("\nDownload complete.\n");
+    // printf("\nDownload complete.\n");
 
     /* ------------------------------------------------------------------
      * Step 6: Make executable (Linux) then replace
@@ -655,7 +650,7 @@ int cmd_update(int argc, char **argv) {
     chmod(tmp_path, 0755);
 #endif
 
-    printf("Installing to: %s\n", install_path);
+    printf("\nInstalling to: %s\n", install_path);
     if (replace_executable(install_path, tmp_path) != 0) {
 #ifdef _WIN32
         DeleteFileA(tmp_path);
@@ -668,8 +663,8 @@ int cmd_update(int argc, char **argv) {
     /* ------------------------------------------------------------------
      * Summary
      * ------------------------------------------------------------------  */
-    printf("\n=== Update complete ===\n");
-    printf("Installed: %s%s\n",
+    // printf("\n=== Update complete ===\n");
+    printf("Installed: %s%s\n\n",
            chosen->tag_name,
            chosen->prerelease ? " (pre-release)" : "");
     if (!overall_ok)
