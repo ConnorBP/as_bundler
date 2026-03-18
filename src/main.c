@@ -1507,10 +1507,40 @@ static char *scramble_strings(char *content) {
   DStr out;
   dstr_init(&out, strlen(content) + 512);
 
-  char prev_ch = 0;
+  char   prev_ch   = 0;
+  int    brace_depth = 0;
+  // When we emit 'const' at global scope we record its position in the output
+  // so we can retroactively remove it if the initialiser turns out to be a
+  // scrambled string.  AngelScript requires compile-time-constant initialisers
+  // for global const variables; __gs() is a runtime call, so we must drop
+  // 'const' whenever we replace such an initialiser.
+  int    const_pending      = 0;   // 1 = a 'const' at depth-0 is deferred
+  size_t const_out_start    = 0;   // out.len before 'const' was written
+  size_t const_out_end      = 0;   // out.len after  'const' was written
+  char   prev_before_const  = 0;   // prev_ch value just before we wrote 'const'
 
   for (int i = 0; i < ta.n; i++) {
     OBFTok *tk = &ta.d[i];
+
+    // ---- brace depth + const-pending bookkeeping ----
+    if (tk->type == OT_PUNCT && tk->len == 1) {
+      char ch = tk->start[0];
+      if      (ch == '{') { brace_depth++; const_pending = 0; }
+      else if (ch == '}') { brace_depth--; const_pending = 0; }
+      else if (ch == ';') { const_pending = 0; }
+    }
+
+    // ---- defer 'const' at global scope ----
+    if (tk->type == OT_IDENT && tk->len == 5 &&
+        strncmp(tk->start, "const", 5) == 0 && brace_depth == 0) {
+      const_pending     = 1;
+      prev_before_const = prev_ch;
+      const_out_start   = out.len;
+      dstr_push_n(&out, tk->start, tk->len);
+      prev_ch           = tk->start[tk->len - 1];
+      const_out_end     = out.len;
+      continue;
+    }
 
     // ---- string literal replacement ----
     if (tk->type == OT_STRING && tk->len >= 2) {
@@ -1524,6 +1554,21 @@ static char *scramble_strings(char *content) {
           free(raw);
           int idx = scrarr_find(&strs, hash);
           if (idx >= 0) {
+            // If this string is the initialiser of a global const variable,
+            // retroactively remove the 'const' we already emitted so the
+            // AngelScript engine sees a plain (non-const) global variable
+            // initialised by the runtime __gs() call.
+            if (const_pending) {
+              size_t remove_len = const_out_end - const_out_start;
+              memmove(out.d + const_out_start,
+                      out.d + const_out_end,
+                      out.len - const_out_end);
+              out.len -= remove_len;
+              out.d[out.len] = '\0';
+              prev_ch       = (out.len > 0) ? out.d[out.len - 1]
+                                            : prev_before_const;
+              const_pending = 0;
+            }
             if (IS_IC(prev_ch)) dstr_push_c(&out, ' ');
             dstr_push_str(&out, "__gs(");
             dstr_push_str(&out, strs.d[idx].key_hex); // uint64 hex literal
