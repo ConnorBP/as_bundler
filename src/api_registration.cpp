@@ -301,12 +301,12 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectMethod("proc_t", "array<dictionary@>@ get_vad_snapshot(bool) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// proc_t memory scan helpers
-	r = engine->RegisterObjectMethod("proc_t", "void scan_bytes(const array<uint8> &in, array<uint64> &out, bool) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("proc_t", "void scan_all_bytes(array<uint64> &out, bool) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("proc_t", "void scan_u32(uint32, array<uint64> &out, bool) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("proc_t", "void scan_u64(uint64, array<uint64> &out, bool) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("proc_t", "void scan_all_u32(array<uint64> &out, bool) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("proc_t", "void scan_all_u64(array<uint64> &out, bool) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "array<uint64>@ scan_u32(uint value, bool heap_only = false) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "array<uint64>@ scan_u64(uint64 value, bool heap_only = false) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "array<uint64>@ scan_float(float value, bool heap_only = false) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "array<uint64>@ scan_double(double value, bool heap_only = false) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "array<uint64>@ scan_string(const string &in text, bool heap_only = false) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "array<uint64>@ scan_wstring(const string &in text, bool heap_only = false) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("proc_t", "array<uint64>@ scan_pointer(uint64 target, bool heap_only = false) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// ws_t methods
