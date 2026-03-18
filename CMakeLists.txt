@@ -108,6 +108,7 @@ add_executable(as_bundler
     src/processing/processing.c
     src/preprocessor/preprocessor.c
     src/obfuscator/obfuscator.c
+    src/stubs/stubs.c
     src/errors/errors.c
     src/commands/cmd_helpers.c
     src/commands/cmd_restore.c

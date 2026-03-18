@@ -72,6 +72,158 @@ void dstr_push_str(DStr *s, const char *t) {
 }
 
 /* -------------------------------------------------------------------------
+ * Symbol map implementation
+ * ---------------------------------------------------------------------- */
+
+static void symmap_dyn_push(char ***arr, int *n, int *cap, const char *str) {
+    if (*n >= *cap) {
+        *cap = *cap ? *cap * 2 : 64;
+        *arr = (char **)realloc(*arr, (size_t)*cap * sizeof(char *));
+    }
+    (*arr)[(*n)++] = strdup(str);
+}
+
+void symmap_init(SymbolMap *m) {
+    memset(m, 0, sizeof(*m));
+}
+
+void symmap_free(SymbolMap *m) {
+    for (int i = 0; i < m->idents_n; i++) {
+        free(m->idents_orig[i]);
+        free(m->idents_obf[i]);
+    }
+    free(m->idents_orig);
+    free(m->idents_obf);
+    for (int i = 0; i < m->prot_n; i++) free(m->prot_names[i]);
+    free(m->prot_names);
+    for (int i = 0; i < m->strs_n; i++) {
+        free(m->str_keys[i]);
+        free(m->str_plains[i]);
+    }
+    free(m->str_keys);
+    free(m->str_plains);
+    memset(m, 0, sizeof(*m));
+}
+
+void symmap_add_rename(SymbolMap *m, const char *orig, const char *obf) {
+    if (m->idents_n >= m->idents_cap) {
+        m->idents_cap  = m->idents_cap ? m->idents_cap * 2 : 64;
+        m->idents_orig = (char **)realloc(m->idents_orig,
+                                          (size_t)m->idents_cap * sizeof(char *));
+        m->idents_obf  = (char **)realloc(m->idents_obf,
+                                          (size_t)m->idents_cap * sizeof(char *));
+    }
+    m->idents_orig[m->idents_n] = strdup(orig);
+    m->idents_obf[m->idents_n]  = strdup(obf);
+    m->idents_n++;
+}
+
+void symmap_add_protected(SymbolMap *m, const char *name) {
+    for (int i = 0; i < m->prot_n; i++)
+        if (strcmp(m->prot_names[i], name) == 0) return;
+    symmap_dyn_push(&m->prot_names, &m->prot_n, &m->prot_cap, name);
+}
+
+void symmap_add_string(SymbolMap *m, const char *hex_key, const char *plaintext) {
+    if (m->strs_n >= m->strs_cap) {
+        m->strs_cap   = m->strs_cap ? m->strs_cap * 2 : 64;
+        m->str_keys   = (char **)realloc(m->str_keys,
+                                          (size_t)m->strs_cap * sizeof(char *));
+        m->str_plains = (char **)realloc(m->str_plains,
+                                          (size_t)m->strs_cap * sizeof(char *));
+    }
+    m->str_keys[m->strs_n]   = strdup(hex_key);
+    m->str_plains[m->strs_n] = strdup(plaintext);
+    m->strs_n++;
+}
+
+static void symmap_escape_json(const char *s, FILE *f) {
+    fputc('"', f);
+    for (; *s; s++) {
+        if      (*s == '"')  fputs("\\\"", f);
+        else if (*s == '\\') fputs("\\\\", f);
+        else if (*s == '\n') fputs("\\n",  f);
+        else if (*s == '\r') fputs("\\r",  f);
+        else if (*s == '\t') fputs("\\t",  f);
+        else                 fputc(*s, f);
+    }
+    fputc('"', f);
+}
+
+void symmap_write(const SymbolMap *m, const char *path, const char *format) {
+    FILE *f = fopen(path, "w");
+    if (!f) {
+        fprintf(stderr, "Warning: could not write symbol map to '%s'\n", path);
+        return;
+    }
+
+    int is_json = (strcmp(format, "json") == 0);
+    int is_csv  = (strcmp(format, "csv")  == 0);
+
+    if (is_json) {
+        fprintf(f, "{\n");
+        /* Renames */
+        fprintf(f, "  \"renames\": [\n");
+        for (int i = 0; i < m->idents_n; i++) {
+            fprintf(f, "    {\"orig\": ");
+            symmap_escape_json(m->idents_orig[i], f);
+            fprintf(f, ", \"obf\": ");
+            symmap_escape_json(m->idents_obf[i], f);
+            fprintf(f, "}%s\n", i < m->idents_n - 1 ? "," : "");
+        }
+        fprintf(f, "  ],\n");
+        /* Protected */
+        fprintf(f, "  \"protected\": [\n");
+        for (int i = 0; i < m->prot_n; i++) {
+            fprintf(f, "    ");
+            symmap_escape_json(m->prot_names[i], f);
+            fprintf(f, "%s\n", i < m->prot_n - 1 ? "," : "");
+        }
+        fprintf(f, "  ],\n");
+        /* Strings */
+        fprintf(f, "  \"strings\": [\n");
+        for (int i = 0; i < m->strs_n; i++) {
+            fprintf(f, "    {\"key\": ");
+            symmap_escape_json(m->str_keys[i], f);
+            fprintf(f, ", \"plain\": ");
+            symmap_escape_json(m->str_plains[i], f);
+            fprintf(f, "}%s\n", i < m->strs_n - 1 ? "," : "");
+        }
+        fprintf(f, "  ]\n}\n");
+    } else if (is_csv) {
+        fprintf(f, "type,original,obfuscated\n");
+        for (int i = 0; i < m->idents_n; i++)
+            fprintf(f, "rename,%s,%s\n", m->idents_orig[i], m->idents_obf[i]);
+        for (int i = 0; i < m->prot_n; i++)
+            fprintf(f, "protected,%s,\n", m->prot_names[i]);
+        for (int i = 0; i < m->strs_n; i++)
+            fprintf(f, "string,%s,\"%s\"\n", m->str_keys[i], m->str_plains[i]);
+    } else {
+        /* Plain text */
+        if (m->idents_n > 0) {
+            fprintf(f, "=== Renamed Identifiers ===\n");
+            for (int i = 0; i < m->idents_n; i++)
+                fprintf(f, "  %-40s -> %s\n",
+                        m->idents_orig[i], m->idents_obf[i]);
+        }
+        if (m->prot_n > 0) {
+            fprintf(f, "\n=== Protected Identifiers ===\n");
+            for (int i = 0; i < m->prot_n; i++)
+                fprintf(f, "  %s\n", m->prot_names[i]);
+        }
+        if (m->strs_n > 0) {
+            fprintf(f, "\n=== Scrambled Strings ===\n");
+            for (int i = 0; i < m->strs_n; i++)
+                fprintf(f, "  %-20s  \"%s\"\n",
+                        m->str_keys[i], m->str_plains[i]);
+        }
+    }
+
+    fclose(f);
+    printf("Symbol map written to '%s'\n", path);
+}
+
+/* -------------------------------------------------------------------------
  * Simple string set (unique, unsorted; linear search fine for < ~5000 idents)
  * ---------------------------------------------------------------------- */
 
@@ -297,19 +449,21 @@ TokArr obf_tokenize(const char *src) {
  * ---------------------------------------------------------------------- */
 
 char *obfuscate_content(const char *content, ASNameList *api_names,
-                        int remove_newlines) {
+                        int remove_newlines, SymbolMap *map_out) {
     /* ------------------------------------------------------------------
-     * 1. Build a sorted protected-name set: keywords + API names
+     * 1. Build a sorted protected-name set: keywords + API + user names
      * ------------------------------------------------------------------ */
     int kw_n    = 0;
     while (OBF_KEYWORDS[kw_n]) kw_n++;
     int api_n   = api_names ? api_names->count : 0;
-    int total_p = kw_n + api_n;
+    int usr_n   = g_protect_name_count;
+    int total_p = kw_n + api_n + usr_n;
 
     const char **prot = (const char **)malloc((size_t)total_p * sizeof(char *));
     int pi = 0;
     for (int i = 0; i < kw_n;  i++) prot[pi++] = OBF_KEYWORDS[i];
     for (int i = 0; i < api_n; i++) prot[pi++] = api_names->names[i];
+    for (int i = 0; i < usr_n; i++) if (g_protect_names[i]) prot[pi++] = g_protect_names[i];
     qsort(prot, (size_t)pi, sizeof(char *), cmp_pstr);
 
     /* Deduplicate in-place */
@@ -342,6 +496,29 @@ char *obfuscate_content(const char *content, ASNameList *api_names,
     /* Sort for stable / reproducible output */
     qsort(idents.d, (size_t)idents.n, sizeof(char *), cmp_pstr);
 
+    /* Record which user-specified protected names actually appear in source */
+    if (map_out) {
+        for (int i = 0; i < ta.n; i++) {
+            OBFTok *tk = &ta.d[i];
+            if (tk->type != OT_IDENT) continue;
+            int found = 0;
+            for (int j = 0; j < g_protect_name_count; j++) {
+                if (g_protect_names[j] &&
+                    (int)strlen(g_protect_names[j]) == tk->len &&
+                    strncmp(g_protect_names[j], tk->start,
+                            (size_t)tk->len) == 0) {
+                    found = 1; break;
+                }
+            }
+            if (!found) continue;
+            char ptmp[256];
+            int  pl = tk->len < 255 ? tk->len : 255;
+            memcpy(ptmp, tk->start, (size_t)pl);
+            ptmp[pl] = '\0';
+            symmap_add_protected(map_out, ptmp);
+        }
+    }
+
     /* ------------------------------------------------------------------
      * 4. Assign short obfuscated names (skip any that are protected)
      * ------------------------------------------------------------------ */
@@ -353,6 +530,7 @@ char *obfuscate_content(const char *content, ASNameList *api_names,
         do { gen_obf_name(gen_idx++, new_name); }
         while (pset_contains(prot, prot_n, new_name));
         renmap_put(&rmap, idents.d[i], new_name);
+        if (map_out) symmap_add_rename(map_out, idents.d[i], new_name);
     }
     printf("Obfuscated %d user identifier(s)\n", rmap.n);
 
@@ -508,7 +686,9 @@ static void scrarr_free(ScrArr *a) {
  * String scrambler – main transform
  * ---------------------------------------------------------------------- */
 
-char *scramble_strings(char *content) {
+char *scramble_strings(char *content, int protect_literals, SymbolMap *map_out) {
+    if (protect_literals) return content;
+
     TokArr ta = obf_tokenize(content);
 
     /* ------------------------------------------------------------------
@@ -549,6 +729,18 @@ char *scramble_strings(char *content) {
 
     if (strs.n == 0) { free(ta.d); return content; }
     printf("Scrambling %d unique string literal(s)\n", strs.n);
+
+    /* Populate symbol map with plaintext for each scrambled string */
+    if (map_out) {
+        for (int i = 0; i < strs.n; i++) {
+            /* Build a safe printable version of the plaintext (truncate at 256) */
+            char plain[257];
+            int  plen = strs.d[i].raw_len < 256 ? strs.d[i].raw_len : 256;
+            memcpy(plain, strs.d[i].raw, (size_t)plen);
+            plain[plen] = '\0';
+            symmap_add_string(map_out, strs.d[i].key_hex, plain);
+        }
+    }
 
     /* ------------------------------------------------------------------
      * 2. Build prologue: hash_map handle + helper functions + init stub

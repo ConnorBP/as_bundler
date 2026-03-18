@@ -6,6 +6,7 @@
 #include "obfuscator/obfuscator.h"
 #include "errors/errors.h"
 #include "commands/commands.h"
+#include "stubs/stubs.h"
 
 /* -------------------------------------------------------------------------
  * Help text
@@ -42,6 +43,28 @@ static void print_help(const char *program_name) {
     printf("  --scramble-strings, -S Replace string literals with runtime\n"
            "                         hash-map lookups; values stored as\n"
            "                         XOR-encrypted byte arrays\n");
+    printf("  --stub <file>          Register a .stub.as file for validation\n"
+           "                         (symbols protected from obfuscation;\n"
+           "                          not included in output)\n");
+    printf("  --stub-dir <dir>       Register all *.stub.as files in a dir\n");
+    printf("  --emit-stub            Write prototype-only stub of the output\n"
+           "                         (use with -o; skips body content)\n");
+    printf("  --protect <name>       Protect an identifier from obfuscation\n"
+           "                         (repeatable)\n");
+    printf("  --protect-namespace <ns>\n"
+           "                         Protect all symbols in a namespace\n"
+           "                         (repeatable)\n");
+    printf("  --protect-file <marker>\n"
+           "                         Protect all symbols in a file section\n"
+           "                         (repeatable; use the relative path as\n"
+           "                          shown in // === path === markers)\n");
+    printf("  --protect-string-literals\n"
+           "                         Do not scramble any string literals\n");
+    printf("  --symbol-map [file]    Write a symbol map after processing\n"
+           "                         (default: symbol_map.txt)\n");
+    printf("  --symbol-map-format <fmt>\n"
+           "                         Symbol map format: text (default),\n"
+           "                         csv, or json\n");
     printf("  --help                 Show this help message\n");
     printf("\nBuild timestamp macros (replaced before all other steps):\n");
     printf("  __BUILD_TIMESTAMP_STR__   String: \"YYYY-MM-DD HH:MM:SS\"\n");
@@ -93,6 +116,12 @@ int main(int argc, char **argv) {
     }
 
     const char *output_file = NULL;
+
+    /* Local arrays for deferred namespace / file protect resolution */
+    char protect_ns[64][256];
+    int  protect_ns_count  = 0;
+    char protect_fmark[64][MAX_PATH];
+    int  protect_fmark_count = 0;
 
     /* --- Argument parsing --- */
     int first_source = -1;
@@ -158,6 +187,62 @@ int main(int argc, char **argv) {
                     g_defines, (size_t)g_define_capacity * sizeof(char *));
             }
             g_defines[g_define_count++] = (char *)arg;
+        } else if (strcmp(arg, "--stub") == 0) {
+            if (i + 1 < argc && g_stub_path_count < MAX_STUB_DIRS) {
+                strncpy(g_stub_paths[g_stub_path_count++], argv[++i], MAX_PATH - 1);
+            } else {
+                fprintf(stderr, "Error: --stub requires a file path argument\n");
+                return 1;
+            }
+        } else if (strcmp(arg, "--stub-dir") == 0) {
+            if (i + 1 < argc && g_stub_dir_count < MAX_STUB_DIRS) {
+                strncpy(g_stub_dirs[g_stub_dir_count++], argv[++i], MAX_PATH - 1);
+            } else {
+                fprintf(stderr, "Error: --stub-dir requires a directory argument\n");
+                return 1;
+            }
+        } else if (strcmp(arg, "--emit-stub") == 0) {
+            g_emit_stub = 1;
+        } else if (strcmp(arg, "--protect") == 0) {
+            if (i + 1 < argc && g_protect_name_count < MAX_PROTECT_NAMES) {
+                g_protect_names[g_protect_name_count++] = strdup(argv[++i]);
+            } else {
+                fprintf(stderr, "Error: --protect requires a name argument\n");
+                return 1;
+            }
+        } else if (strcmp(arg, "--protect-namespace") == 0) {
+            if (i + 1 < argc && protect_ns_count < 64) {
+                strncpy(protect_ns[protect_ns_count++], argv[++i], 255);
+            } else {
+                fprintf(stderr, "Error: --protect-namespace requires a namespace argument\n");
+                return 1;
+            }
+        } else if (strcmp(arg, "--protect-file") == 0) {
+            if (i + 1 < argc && protect_fmark_count < 64) {
+                strncpy(protect_fmark[protect_fmark_count++], argv[++i], MAX_PATH - 1);
+            } else {
+                fprintf(stderr, "Error: --protect-file requires a marker argument\n");
+                return 1;
+            }
+        } else if (strcmp(arg, "--protect-string-literals") == 0) {
+            g_protect_string_literals = 1;
+        } else if (strcmp(arg, "--symbol-map") == 0) {
+            g_write_symbol_map = 1;
+            /* Optional next arg: path.  If it starts with '-' or doesn't
+             * exist, use the default filename. */
+            if (i + 1 < argc && argv[i + 1][0] != '-') {
+                strncpy(g_symbol_map_path, argv[++i], MAX_PATH - 1);
+            } else {
+                strncpy(g_symbol_map_path, "symbol_map.txt", MAX_PATH - 1);
+            }
+        } else if (strcmp(arg, "--symbol-map-format") == 0) {
+            if (i + 1 < argc) {
+                strncpy(g_symbol_map_format, argv[++i], 15);
+                g_symbol_map_format[15] = '\0';
+            } else {
+                fprintf(stderr, "Error: --symbol-map-format requires a format argument\n");
+                return 1;
+            }
         } else if (arg[0] != '-') {
             first_source = i;
             break;
@@ -173,13 +258,27 @@ int main(int argc, char **argv) {
     }
 
     /* --- Log active options --- */
-    if (g_strip_comments)   printf("Option: Stripping comment-only lines\n");
-    if (g_skip_preprocess)  printf("Option: Skipping C preprocessor\n");
-    if (g_obfuscate)        printf("Option: Obfuscating identifiers\n");
-    if (g_remove_newlines)  printf("Option: Removing newlines\n");
-    if (g_scramble_strings) printf("Option: Scrambling string literals\n");
+    if (g_strip_comments)           printf("Option: Stripping comment-only lines\n");
+    if (g_skip_preprocess)          printf("Option: Skipping C preprocessor\n");
+    if (g_obfuscate)                printf("Option: Obfuscating identifiers\n");
+    if (g_remove_newlines)          printf("Option: Removing newlines\n");
+    if (g_scramble_strings)         printf("Option: Scrambling string literals\n");
+    if (g_protect_string_literals)  printf("Option: Protecting string literals\n");
+    if (g_emit_stub)                printf("Option: Emitting stub output\n");
+    if (g_write_symbol_map)         printf("Option: Symbol map -> %s (%s)\n",
+                                            g_symbol_map_path, g_symbol_map_format);
     if (g_prepend_file[0])  printf("Option: Prepend file: %s\n", g_prepend_file);
     if (g_header_file[0])   printf("Option: Header file: %s\n", g_header_file);
+    for (int i = 0; i < g_stub_path_count; i++)
+        printf("Option: Stub: %s\n", g_stub_paths[i]);
+    for (int i = 0; i < g_stub_dir_count;  i++)
+        printf("Option: Stub dir: %s\n", g_stub_dirs[i]);
+    for (int i = 0; i < g_protect_name_count; i++)
+        printf("Option: Protect: %s\n", g_protect_names[i]);
+    for (int i = 0; i < protect_ns_count; i++)
+        printf("Option: Protect namespace: %s\n", protect_ns[i]);
+    for (int i = 0; i < protect_fmark_count; i++)
+        printf("Option: Protect file: %s\n", protect_fmark[i]);
     if (g_define_count > 0) {
         printf("Defines:");
         for (int i = 0; i < g_define_count; i++) printf(" %s", g_defines[i]);
@@ -289,10 +388,14 @@ int main(int argc, char **argv) {
 
     /* --- Step 6: Run C preprocessor --- */
     if (!g_skip_preprocess) {
+        /* Hide #include_lib directives so gcc -E ignores them */
+        combined = protect_lib_includes(combined);
         printf("Running C preprocessor (single pass)...\n");
         char *preprocessed = run_preprocessor(combined);
         free(combined);
         combined = preprocessed;
+        /* Restore #include_lib directives after preprocessing */
+        combined = restore_lib_includes(combined);
         printf("Preprocessor complete\n");
     }
 
@@ -322,6 +425,46 @@ int main(int argc, char **argv) {
         printf("Header prepended: %s\n", g_header_file);
     }
 
+    /* --- Step 9a: Load stubs --- */
+    for (int i = 0; i < g_stub_path_count; i++)
+        stub_register(g_stub_paths[i]);
+    for (int i = 0; i < g_stub_dir_count; i++)
+        stub_register_dir(g_stub_dirs[i]);
+    if (g_stub_count > 0) {
+        stub_load_all();
+        printf("Loaded %d stub file(s)\n", g_stub_count);
+    }
+
+    /* Collect stub symbols and add them to g_protect_names */
+    if (g_stub_count > 0 && (g_obfuscate || g_scramble_strings)) {
+        char **stub_syms = stub_collect_symbols();
+        if (stub_syms) {
+            for (int i = 0; stub_syms[i] && g_protect_name_count < MAX_PROTECT_NAMES; i++) {
+                g_protect_names[g_protect_name_count++] = stub_syms[i];
+                stub_syms[i] = NULL; /* ownership transferred */
+            }
+            free(stub_syms);
+        }
+    }
+
+    /* --- Step 9b: Resolve --protect-namespace and --protect-file --- */
+    for (int i = 0; i < protect_ns_count; i++) {
+        collect_decl_symbols(combined, protect_ns[i], NULL,
+                             g_protect_names,
+                             &g_protect_name_count,
+                             MAX_PROTECT_NAMES);
+        printf("Protected namespace '%s': %d name(s) total\n",
+               protect_ns[i], g_protect_name_count);
+    }
+    for (int i = 0; i < protect_fmark_count; i++) {
+        collect_decl_symbols(combined, NULL, protect_fmark[i],
+                             g_protect_names,
+                             &g_protect_name_count,
+                             MAX_PROTECT_NAMES);
+        printf("Protected file '%s': %d name(s) total\n",
+               protect_fmark[i], g_protect_name_count);
+    }
+
     /* --- Step 10: Validate bundled script --- */
     void *validator = as_validator_create();
     if (!validator) {
@@ -335,6 +478,17 @@ int main(int argc, char **argv) {
     if (api_names) printf("Loaded %d protected API name(s)\n", api_names->count);
 
     ASErrorList *errors = as_error_list_create();
+
+    /* Add stub validation sections so the validator knows external symbols */
+    for (int i = 0; i < g_stub_count; i++) {
+        if (g_stubs[i].val_content) {
+            if (as_add_section(validator, g_stubs[i].val_content,
+                               g_stubs[i].lib_name) < 0) {
+                fprintf(stderr, "Warning: could not add stub section '%s'\n",
+                        g_stubs[i].lib_name);
+            }
+        }
+    }
 
     if (as_add_section(validator, combined, "bundled") < 0) {
         fprintf(stderr, "Error: Could not add bundled script\n");
@@ -443,9 +597,14 @@ int main(int argc, char **argv) {
         combined = stripped;
     }
 
+    SymbolMap smap;
+    symmap_init(&smap);
+
     /* --- Step 10b: Scramble string literals --- */
     if (g_scramble_strings && !validation_failed) {
-        char *scrambled = scramble_strings(combined);
+        char *scrambled = scramble_strings(combined,
+                                           g_protect_string_literals,
+                                           g_write_symbol_map ? &smap : NULL);
         free(combined);
         combined = scrambled;
     }
@@ -454,30 +613,47 @@ int main(int argc, char **argv) {
     if (g_obfuscate && !validation_failed) {
         printf("Obfuscating identifiers%s...\n",
                g_remove_newlines ? " and removing newlines" : "");
-        char *obfuscated = obfuscate_content(combined, api_names, g_remove_newlines);
+        char *obfuscated = obfuscate_content(combined, api_names,
+                                              g_remove_newlines,
+                                              g_write_symbol_map ? &smap : NULL);
         free(combined);
         combined = obfuscated;
     } else if (g_remove_newlines && !validation_failed) {
         /* Newline removal without rename */
-        char *obfuscated = obfuscate_content(combined, NULL, 1);
+        char *obfuscated = obfuscate_content(combined, NULL, 1, NULL);
         free(combined);
         combined = obfuscated;
     }
 
     if (api_names) { as_name_list_destroy(api_names); api_names = NULL; }
 
+    /* --- Step 10d: Write symbol map --- */
+    if (g_write_symbol_map && !validation_failed)
+        symmap_write(&smap, g_symbol_map_path, g_symbol_map_format);
+    symmap_free(&smap);
+
     /* --- Step 11: Write output --- */
     if (g_verbose && output_file) {
+        /* --emit-stub: generate prototype-only output */
+        const char *write_content = combined;
+        char       *stub_content  = NULL;
+        if (g_emit_stub) {
+            stub_content  = emit_stub(combined);
+            write_content = stub_content;
+        }
+
         FILE *out = fopen(output_file, "wb");
         if (!out) {
             fprintf(stderr, "Error: Could not write to '%s'\n", output_file);
+            free(stub_content);
             as_error_list_destroy(errors);
             as_validator_destroy(validator);
             free(combined);
             return 1;
         }
-        fwrite(combined, 1, strlen(combined), out);
+        fwrite(write_content, 1, strlen(write_content), out);
         fclose(out);
+        free(stub_content);
         printf("Successfully bundled %d file(s) in dependency order\n",
                g_order.count);
         printf("Output: %s\n", output_file);
@@ -488,6 +664,12 @@ int main(int argc, char **argv) {
     free(g_files.files);
     free(g_order.paths);
     free(g_defines);
+    for (int i = 0; i < g_protect_name_count; i++) free(g_protect_names[i]);
+    /* Free stub content */
+    for (int i = 0; i < g_stub_count; i++) {
+        free(g_stubs[i].raw_content);
+        free(g_stubs[i].val_content);
+    }
     free(combined);
     as_error_list_destroy(errors);
     as_validator_destroy(validator);

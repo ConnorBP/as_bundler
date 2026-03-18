@@ -67,21 +67,53 @@ TokArr obf_tokenize(const char *src);
 #define IS_IC(c) (isalnum((unsigned char)(c)) || (c) == '_')
 
 /* -------------------------------------------------------------------------
+ * Symbol map
+ *
+ * Records every identifier rename, every protected identifier that
+ * appeared in the source, and every string scramble entry (key → plaintext).
+ * Written to disk after obfuscation/scrambling via symmap_write().
+ * ---------------------------------------------------------------------- */
+
+typedef struct {
+    /* Renamed identifiers */
+    char **idents_orig;
+    char **idents_obf;
+    int    idents_n, idents_cap;
+    /* Protected identifiers encountered in source (not renamed) */
+    char **prot_names;
+    int    prot_n, prot_cap;
+    /* Scrambled strings: hex_key -> plaintext */
+    char **str_keys;
+    char **str_plains;
+    int    strs_n, strs_cap;
+} SymbolMap;
+
+void symmap_init(SymbolMap *m);
+void symmap_free(SymbolMap *m);
+void symmap_add_rename(SymbolMap *m, const char *orig, const char *obf);
+void symmap_add_protected(SymbolMap *m, const char *name);
+void symmap_add_string(SymbolMap *m, const char *hex_key, const char *plaintext);
+/* Write symbol map to path in the given format ("text", "csv", "json") */
+void symmap_write(const SymbolMap *m, const char *path, const char *format);
+
+/* -------------------------------------------------------------------------
  * Identifier obfuscation
  *
  * Renames every user-defined identifier in content to a short generated
- * name, while preserving all AngelScript keywords and engine-registered
- * API names.
+ * name, while preserving all AngelScript keywords, engine-registered API
+ * names, and any user-specified protected names (g_protect_names).
  *
  * api_names       – engine-registered names to protect (may be NULL)
  * remove_newlines – collapse all whitespace/newlines; inject spaces only
  *                   where required to keep tokens distinct
+ * map_out         – if non-NULL, populated with all renames and protected
+ *                   names that appeared in the source
  *
  * Returns a new malloc'd string; caller must free it.
  * ---------------------------------------------------------------------- */
 
 char *obfuscate_content(const char *content, ASNameList *api_names,
-                        int remove_newlines);
+                        int remove_newlines, SymbolMap *map_out);
 
 /* -------------------------------------------------------------------------
  * String scrambler
@@ -91,10 +123,14 @@ char *obfuscate_content(const char *content, ASNameList *api_names,
  * and prepends helper functions + an __init_str_table() function that
  * initialises a global hash_map@ from XOR-encrypted byte arrays.
  *
+ * protect_literals – if non-zero, string literals are left untouched
+ *                    (honours --protect-string-literals)
+ * map_out          – if non-NULL, populated with hex_key → plaintext pairs
+ *
  * Does NOT free `content`; caller frees old pointer and keeps the return
  * value.
  * ---------------------------------------------------------------------- */
 
-char *scramble_strings(char *content);
+char *scramble_strings(char *content, int protect_literals, SymbolMap *map_out);
 
 #endif /* OBFUSCATOR_H */

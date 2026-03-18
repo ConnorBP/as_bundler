@@ -83,7 +83,9 @@ char *strip_includes(const char *content) {
             size_t copy_len  = line_len < MAX_LINE - 1 ? line_len : MAX_LINE - 1;
             strncpy(line, line_start, copy_len);
             line[copy_len] = '\0';
-            if (!strstr(line, "#include")) {
+            /* Keep #include_lib lines; strip only plain #include */
+            int is_include_lib = strstr(line, "#include_lib") != NULL;
+            if (!strstr(line, "#include") || is_include_lib) {
                 memcpy(dst, line_start, line_len);
                 dst += line_len;
             }
@@ -98,7 +100,8 @@ char *strip_includes(const char *content) {
         size_t copy_len = line_len < MAX_LINE - 1 ? line_len : MAX_LINE - 1;
         strncpy(line, line_start, copy_len);
         line[copy_len] = '\0';
-        if (!strstr(line, "#include")) {
+        int is_include_lib = strstr(line, "#include_lib") != NULL;
+        if (!strstr(line, "#include") || is_include_lib) {
             memcpy(dst, line_start, line_len);
             dst += line_len;
         }

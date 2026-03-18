@@ -114,6 +114,74 @@ char *run_preprocessor(const char *content) {
 }
 
 /* -------------------------------------------------------------------------
+ * #include_lib protection helpers
+ * ---------------------------------------------------------------------- */
+
+/* Converts  #include_lib "x"  ->  // @@BUNDLER_LIB@@ "x"  (line-for-line) */
+char *protect_lib_includes(char *content) {
+    static const char directive[] = "#include_lib";
+    static const char marker[]    = "// @@BUNDLER_LIB@@";
+    static const size_t dir_len   = sizeof(directive) - 1;
+    static const size_t mark_len  = sizeof(marker)    - 1;
+
+    /* Count occurrences to size the output buffer */
+    int    count = 0;
+    char  *pos   = content;
+    while ((pos = strstr(pos, directive)) != NULL) { count++; pos += dir_len; }
+    if (count == 0) return content;
+
+    /* Each replacement: remove dir_len chars, insert mark_len chars */
+    size_t old_len = strlen(content);
+    size_t new_len = old_len - (size_t)count * dir_len + (size_t)count * mark_len;
+    char  *result  = (char *)malloc(new_len + 1);
+    char  *dst     = result;
+    const char *src = content;
+
+    while ((pos = strstr(src, directive)) != NULL) {
+        size_t before = (size_t)(pos - src);
+        memcpy(dst, src, before);
+        dst += before;
+        memcpy(dst, marker, mark_len);
+        dst += mark_len;
+        src  = pos + dir_len;
+    }
+    strcpy(dst, src);
+    free(content);
+    return result;
+}
+
+/* Converts  // @@BUNDLER_LIB@@ "x"  ->  #include_lib "x"  (line-for-line) */
+char *restore_lib_includes(char *content) {
+    static const char marker[]    = "// @@BUNDLER_LIB@@";
+    static const char directive[] = "#include_lib";
+    static const size_t mark_len  = sizeof(marker)    - 1;
+    static const size_t dir_len   = sizeof(directive)  - 1;
+
+    int    count = 0;
+    char  *pos   = content;
+    while ((pos = strstr(pos, marker)) != NULL) { count++; pos += mark_len; }
+    if (count == 0) return content;
+
+    size_t old_len = strlen(content);
+    size_t new_len = old_len - (size_t)count * mark_len + (size_t)count * dir_len;
+    char  *result  = (char *)malloc(new_len + 1);
+    char  *dst     = result;
+    const char *src = content;
+
+    while ((pos = strstr(src, marker)) != NULL) {
+        size_t before = (size_t)(pos - src);
+        memcpy(dst, src, before);
+        dst += before;
+        memcpy(dst, directive, dir_len);
+        dst += dir_len;
+        src  = pos + mark_len;
+    }
+    strcpy(dst, src);
+    free(content);
+    return result;
+}
+
+/* -------------------------------------------------------------------------
  * Pragma-marker conversion
  * ---------------------------------------------------------------------- */
 

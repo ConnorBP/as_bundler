@@ -96,4 +96,34 @@ extern int   g_define_capacity;
 extern FileList       g_files;
 extern ProcessedOrder g_order;
 
+/* -------------------------------------------------------------------------
+ * Stub system configuration
+ * ---------------------------------------------------------------------- */
+
+#define MAX_STUB_DIRS  32
+
+extern char g_stub_paths[MAX_STUB_DIRS][MAX_PATH]; /* individual --stub files */
+extern int  g_stub_path_count;
+extern char g_stub_dirs[MAX_STUB_DIRS][MAX_PATH];  /* --stub-dir directories  */
+extern int  g_stub_dir_count;
+extern int  g_emit_stub;                           /* --emit-stub flag        */
+
+/* -------------------------------------------------------------------------
+ * Obfuscation protection configuration
+ * ---------------------------------------------------------------------- */
+
+#define MAX_PROTECT_NAMES 1024
+
+extern char *g_protect_names[MAX_PROTECT_NAMES]; /* --protect <name>          */
+extern int   g_protect_name_count;
+extern int   g_protect_string_literals;          /* --protect-string-literals */
+
+/* -------------------------------------------------------------------------
+ * Symbol map configuration
+ * ---------------------------------------------------------------------- */
+
+extern char g_symbol_map_path[MAX_PATH];    /* --symbol-map [path]           */
+extern char g_symbol_map_format[16];        /* --symbol-map-format json|csv|text */
+extern int  g_write_symbol_map;             /* 1 if --symbol-map was given   */
+
 #endif /* COMMON_H */
