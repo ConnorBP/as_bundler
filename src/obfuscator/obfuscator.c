@@ -17,8 +17,8 @@ static const char *OBF_KEYWORDS[] = {
     "shared", "string", "super", "switch", "this", "true", "try",
     "typedef", "uint", "uint8", "uint16", "uint32", "uint64", "void",
     "while", "xor",
-    /* Entry-point name that must never be renamed */
-    "main",
+    /* Entry/exit-point name that must never be renamed */
+    "main", "on_unload",
     /* Generated string-scrambler symbols that must never be renamed */
     "__dec", "__gs", "__gs_init", "__init_str_table", "__str_table",
     NULL
