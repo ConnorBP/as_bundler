@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AngelScript Secure Viewer</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <style>
+        * { box-sizing: border-box; }
+        body, html { 
+            height: 100%; margin: 0; overflow: hidden; 
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            background: #000; color: #eee; 
+        }
+
+        .app-container { display: flex; height: 100vh; width: 100vw; }
+
+        /* Sidebar Styling */
+        .sidebar {
+            width: 320px;
+            background: #181818;
+            border-right: 1px solid #333;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            flex-shrink: 0;
+            z-index: 20;
+        }
+
+        .sidebar h2 { margin-top: 0; font-size: 1.2rem; color: #007acc; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        
+        .field-group { display: flex; flex-direction: column; gap: 8px; }
+        label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+        
+        input[type="file"] {
+            background: #252525; border: 1px solid #444; padding: 8px;
+            border-radius: 4px; color: #ccc; font-size: 12px; cursor: pointer;
+        }
+
+        button {
+            background: #007acc; color: white; border: none; padding: 12px;
+            border-radius: 4px; cursor: pointer; font-weight: bold;
+            margin-top: 10px; transition: 0.2s;
+        }
+        button:hover { background: #005fa3; }
+
+        /* Main Viewport */
+        .viewport { position: relative; flex-grow: 1; height: 100%; background: #1d1d1d; }
+
+        #editor-container {
+            height: 100%;
+            width: 100%;
+            overflow: auto; /* Re-enabled scrolling */
+            padding: 0;
+            margin: 0;
+        }
+
+        /* The Overlay fix */
+        .glass-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 10;
+            pointer-events: none; /* CRITICAL: Allows scroll to pass through */
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        pre { margin: 0 !important; padding: 25px !important; min-height: 100%; }
+        code { font-family: 'Consolas', monospace !important; font-size: 13px !important; line-height: 1.5; }
+        
+        /* Custom Scrollbar */
+        #editor-container::-webkit-scrollbar { width: 10px; height: 10px; }
+        #editor-container::-webkit-scrollbar-thumb { background: #333; border-radius: 5px; }
+        #editor-container::-webkit-scrollbar-track { background: #1d1d1d; }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+<div class="app-container">
+    <div class="sidebar">
+        <h2>AS De-obfuscator</h2>
+        
+        <div class="field-group">
+            <label>Symbol Map (JSON)</label>
+            <input type="file" id="jsonInput" accept=".json">
+        </div>
+
+        <div class="field-group">
+            <label>Obfuscated Script (.as)</label>
+            <input type="file" id="scriptInput" accept=".as">
+        </div>
+
+        <button onclick="processFiles()">PROCESS SCRIPT</button>
+
+        <div style="margin-top: auto; font-size: 10px; color: #555;">
+            VIEW-ONLY MODE ACTIVE<br>
+            Selection & Copying Disabled
+        </div>
+    </div>
+
+    <div class="viewport">
+        <div class="glass-overlay"></div>
+        <div id="editor-container">
+            <pre><code id="code-display" class="language-cpp">// Code will appear here...</code></pre>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+
+<script>
+async function processFiles() {
+    const jsonFile = document.getElementById('jsonInput').files[0];
+    const scriptFile = document.getElementById('scriptInput').files[0];
+
+    if (!jsonFile || !scriptFile) {
+        alert("Please select both files.");
+        return;
+    }
+
+    try {
+        const symbolMap = JSON.parse(await jsonFile.text());
+        let code = await scriptFile.text();
+
+        // 1. Strings replacement
+        if (symbolMap.strings) {
+            symbolMap.strings.forEach(item => {
+                const hex = item.key.toLowerCase();
+                const regex = new RegExp(`__gs\\(${hex}\\)`, 'gi');
+                code = code.replace(regex, `"${item.plain}"`);
+            });
+        }
+
+        // 2. Symbols replacement
+        const sortedRenames = [...symbolMap.renames].sort((a, b) => b.obf.length - a.obf.length);
+        sortedRenames.forEach(mapping => {
+            const regex = new RegExp(`\\b${mapping.obf}\\b`, 'g');
+            code = code.replace(regex, mapping.orig);
+        });
+
+        // 3. Highlight
+        const codeElement = document.getElementById('code-display');
+        codeElement.textContent = code;
+        Prism.highlightElement(codeElement);
+        
+        // Reset scroll to top
+        document.getElementById('editor-container').scrollTop = 0;
+
+    } catch (err) {
+        console.error(err);
+        alert("Processing error. See console.");
+    }
+}
+
+// Global protection
+document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && ['c', 'v', 's', 'u', 'p', 'a'].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+    }
+});
+</script>
+</body>
+</html>
