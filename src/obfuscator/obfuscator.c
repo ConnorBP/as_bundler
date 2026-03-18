@@ -671,6 +671,46 @@ char *scramble_strings(char *content) {
                         dstr_push_str(&out, strs.d[idx].key_hex);
                         dstr_push_c(&out, ')');
                         prev_ch = ')';
+                        /* AngelScript supports adjacent string literal
+                         * concatenation: "a" "b" == "ab".  Absorb any
+                         * whitespace/newline tokens that follow and, if
+                         * the next token is also a replaced string, insert
+                         * '+' so the output is __gs(H1)+__gs(H2) rather
+                         * than two bare calls with no operator. */
+                        while (i + 1 < ta.n) {
+                            OBFTok *nx = &ta.d[i + 1];
+                            if (nx->type == OT_WHITESPACE ||
+                                nx->type == OT_NEWLINE) {
+                                i++; /* absorb whitespace silently */
+                            } else if (nx->type == OT_STRING &&
+                                       nx->len >= 2) {
+                                /* Peek: would this next string be replaced? */
+                                const char    *nb   = nx->start + 1;
+                                int            nbl  = nx->len - 2;
+                                int            nidx = -1;
+                                if (nbl > 0) {
+                                    unsigned char *nr =
+                                        (unsigned char *)malloc(
+                                            (size_t)(nbl + 1));
+                                    if (nr) {
+                                        int      nrl = decode_string_body(
+                                                           nb, nbl, nr);
+                                        uint64_t nh  = fnv1a_64(
+                                                           (const char *)nr,
+                                                           (size_t)nrl);
+                                        free(nr);
+                                        nidx = scrarr_find(&strs, nh);
+                                    }
+                                }
+                                if (nidx >= 0) {
+                                    dstr_push_c(&out, '+');
+                                    prev_ch = '+';
+                                }
+                                break; /* let the main loop handle the token */
+                            } else {
+                                break;
+                            }
+                        }
                         continue;
                     }
                 }
