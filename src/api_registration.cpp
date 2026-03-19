@@ -7,6 +7,9 @@
 #include <cassert>
 
 typedef unsigned int uint;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
+typedef uint64_t uint64;
 
 // Stub function for registration (actual implementation not needed for validation)
 void StubFunction() {}
@@ -133,6 +136,7 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectMethod("quaternion", "double dot(const quaternion &in) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("quaternion", "vector3 rotate(const vector3 &in) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("quaternion", "void to_euler(double &out, double &out, double &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("quaternion", "bool writeas_float(uproc_t& in, uint64 addr) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// matrix4x4
 	r = engine->RegisterObjectType("matrix4x4", sizeof(double)*16, asOBJ_VALUE | asOBJ_POD | asOBJ_APP_CLASS_CDAK);
@@ -168,14 +172,19 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectBehaviour("atomic_int64", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectBehaviour("atomic_int64", asBEHAVE_CONSTRUCT, "void f(int64)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectBehaviour("atomic_int64", asBEHAVE_CONSTRUCT, "void f(const atomic_int64 &in)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("atomic_int64", "atomic_int64 &opAssign(const atomic_int64 &in)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("atomic_int64", "int64 load() const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("atomic_int64", "void store(int64)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("atomic_int64", "int64 exchange(int64)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("atomic_int64", "bool compare_exchange(int64, int64)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("atomic_int64", "atomic_int64 &opAssign(const atomic_int64 &in)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("atomic_int64", "int64 and_op(int64)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("atomic_int64", "int64 or_op(int64)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("atomic_int64", "int64 xor_op(int64)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("atomic_int64", "int64 add(int64 v)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("atomic_int64", "int64 sub(int64 v)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("atomic_int64", "int64 and_op(int64 v)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod ("atomic_int64", "int64 or_op(int64 v)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("atomic_int64", "int64 xor_op(int64 v)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("atomic_int64", "int64 increment()", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("atomic_int64", "int64 decrement()", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+
 
 	// WindowInfo - value type for window information
 	// Note: This is a simplified registration - actual implementation would need proper storage
@@ -203,7 +212,7 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectMethod("ZydisEncoderRequest", "void set_mnemonic(int)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("ZydisEncoderRequest", "void set_operand_count(int)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("ZydisEncoderRequest", "void set_operand_reg(int, int)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("ZydisEncoderRequest", "void set_operand_imm(int, uint64)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("ZydisEncoderRequest", "void set_operand_imm(int, int64)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("ZydisEncoderRequest", "void set_operand_mem(int, int, int, int, int64, int)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	// ZydisEncoderRequest getters
 	r = engine->RegisterObjectMethod("ZydisEncoderRequest", "int get_mnemonic()", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
@@ -253,25 +262,25 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectMethod("proc_t", "bool wf64(uint64, double)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// proc_t string methods
-	r = engine->RegisterObjectMethod("proc_t", "string rs(uint64, uint) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("proc_t", "string rws(uint64, uint) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "string rs (uint64 addr, int max_chars) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "string rws(uint64 addr, int max_chars) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("proc_t", "bool ws(uint64, const string &in)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("proc_t", "bool wws(uint64, const string &in)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// proc_t memory methods
-	r = engine->RegisterObjectMethod("proc_t", "void rvm(uint64, uint, array<uint8> &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "void rvm(uint64 addr, uint size, array<uint8> &out out_buf)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("proc_t", "bool wvm(uint64, const array<uint8> &in)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// proc_t module/pattern methods
-	r = engine->RegisterObjectMethod("proc_t", "bool get_module(const string &in, uint64 &out, uint64 &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("proc_t", "uint64 find_code_pattern(uint64, uint64, const string &in) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("proc_t", "void find_all_code_patterns(uint64, uint64, const string &in, array<uint64> &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "bool get_module(const string &in name, uint64 &out module_base, uint64 &out module_size)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "uint64 find_code_pattern(uint64 search_start, uint64 search_size, const string &in signature)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "void find_all_code_patterns(uint64 search_start, uint64 search_size, const string &in signature, array<uint64> &out result)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// proc_t advanced methods
-	r = engine->RegisterObjectMethod("proc_t", "uint64 get_proc_address(uint64, const string &in) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "uint64 get_proc_address(uint64 module_base, const string &in export_name)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("proc_t", "array<uint64>@ get_all_tebs() const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("proc_t", "array<dictionary@>@ cs2_get_schema_dump() const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("proc_t", "uint64 cs2_get_interface(const string &in) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "uint64 cs2_get_interface(uint64 module_base, const string &in name) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// proc_t SIMD helpers
 	r = engine->RegisterObjectMethod("proc_t", "void r128(uint64, array<uint8> &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
@@ -282,23 +291,22 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectMethod("proc_t", "bool w512(uint64, const array<uint8> &in)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// proc_t struct helpers
-	r = engine->RegisterObjectMethod("proc_t", "bool read_struct(uint64, dictionary &out, const dictionary &in) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("proc_t", "bool read_struct_array(uint64, uint, uint, array<dictionary>@ &out, const dictionary &in) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "bool read_struct(uint64 addr, dictionary &out result, const dictionary &in desc)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "bool read_struct_array(uint64 base, uint count, uint size, array<dictionary>@ &out result, const dictionary &in desc)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// proc_t virtual memory functions
 	r = engine->RegisterObjectMethod("proc_t", "uint64 alloc_vm(uint)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("proc_t", "bool free_vm(uint64)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// proc_t import/export functions
-	r = engine->RegisterObjectMethod("proc_t", "uint64 get_import_rdata_address(uint64, const string &in) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "uint64 get_import_rdata_address(uint64 module_base, const string &in import_name)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// proc_t pointer array helper
-	r = engine->RegisterObjectMethod("proc_t", "array<uint64>@ read_pointer_array(uint64, uint, int) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "array<uint64>@ read_pointer_array(uint64 base, uint count, int offset_delta) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// proc_t virtual memory analysis
-	r = engine->RegisterObjectMethod("proc_t", "bool virtual_query(uint64, uint64 &out, uint64 &out, uint32 &out, bool &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// r = engine->RegisterObjectMethod("proc_t", "void get_vad_snapshot(bool, array<dictionary>@ &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("proc_t", "array<dictionary@>@ get_vad_snapshot(bool) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "bool virtual_query(uint64 address, uint64 &out region_start, uint64 &out region_size, uint &out protection, bool &out heap_likely) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("proc_t", "array<dictionary@>@ get_vad_snapshot(bool heap_likely_only = false) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// proc_t memory scan helpers
 	r = engine->RegisterObjectMethod("proc_t", "array<uint64>@ scan_u32(uint value, bool heap_only = false) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
@@ -314,8 +322,8 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectMethod("ws_t", "bool send_binary(const array<uint8> &in)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("ws_t", "bool send_json(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("ws_t", "bool is_open() const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("ws_t", "void close(int = 1000)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("ws_t", "void recv(string &out, bool &out)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("ws_t", "void close(uint16 code = 1000)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("ws_t", "bool recv(string &out msg, bool &out is_text)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("ws_t", "bool poll(string &out, bool &out, bool &out)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// mutex_t methods
@@ -331,7 +339,7 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectMethod("ZydisBuilder", "void set_base_address(uint64)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("ZydisBuilder", "void set_machine_mode(int)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("ZydisBuilder", "void push(const ZydisEncoderRequest &in)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("ZydisBuilder", "void push_nop(int)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("ZydisBuilder", "void push_nop(int count = 1)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("ZydisBuilder", "void push_int3()", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("ZydisBuilder", "void push_ret()", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("ZydisBuilder", "void clear()", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
@@ -355,50 +363,33 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectMethod("subtab_t", "panel_t add_panel(const string &in, bool)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("subtab_t", "bool is_valid() const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("subtab_t", "void set_active(bool)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// panel_t methods
 	r = engine->RegisterObjectMethod("panel_t", "void set_active(bool)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// panel_t::add_checkbox
-	r = engine->RegisterObjectMethod("panel_t", "checkbox_t add_checkbox(const string &in, bool, bool = true, bool = false, bool = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// panel_t::add_slider_int
-	r = engine->RegisterObjectMethod("panel_t", "slider_int_t add_slider_int(const string &in, const string &in, int, int, int, int, bool = true, bool = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// panel_t::add_slider_double
-	r = engine->RegisterObjectMethod("panel_t", "slider_double_t add_slider_double(const string &in, const string &in, double, double, double, double, bool = true, bool = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// panel_t::add_keybind
-	r = engine->RegisterObjectMethod("panel_t", "keybind_t add_keybind(const string &in, int, const string &in, bool = true, bool = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// panel_t::add_color
-	r = engine->RegisterObjectMethod("panel_t", "color_picker_t add_color(const string &in, const array<float> &in, bool = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// panel_t::add_input
-	r = engine->RegisterObjectMethod("panel_t", "input_t add_input(const string &in, const string &in, bool = true, bool = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// panel_t::add_list
-	r = engine->RegisterObjectMethod("panel_t", "list_t add_list(const string &in, const array<dictionary@> &in, bool = true, bool = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// panel_t::add_multi_select
-	r = engine->RegisterObjectMethod("panel_t", "multi_select_t add_multi_select(const string &in, const array<dictionary@> &in, bool, bool = true, bool = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// panel_t::add_single_select
-	r = engine->RegisterObjectMethod("panel_t", "single_select_t add_single_select(const string &in, const array<string> &in, int, bool, bool = true, bool = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// panel_t::add_button
-	r = engine->RegisterObjectMethod("panel_t", "button_t add_button(const string &in, const button_callback_t@, bool = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// checkbox_t methods
+	r = engine->RegisterObjectMethod("panel_t", "checkbox_t add_checkbox(const string &in name, bool initial, bool draw_title = true, bool find_protect = false, bool draw_just_label = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("panel_t", "slider_int_t add_slider_int(const string &in name, const string &in postfix, int value, int minv, int maxv, int step, bool draw_title = true, bool find_protect = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("panel_t", "slider_double_t add_slider_double(const string &in name, const string &in postfix, double value, double minv, double maxv, double step, bool draw_title = true, bool find_protect = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("panel_t", "keybind_t add_keybind(const string &in name, int key, const string &in mode, bool draw_title = true, bool find_protect = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("panel_t", "color_picker_t add_color(const string &in name, const array<float> &in rgba, bool find_protect = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("panel_t", "input_t add_input(const string &in name, const string &in initial, bool draw_title = true, bool find_protect = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("panel_t", "list_t add_list(const string &in name, const array<dictionary@> &in members, bool draw_title = true, bool find_protect = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("panel_t", "multi_select_t add_multi_select(const string &in name, const array<dictionary@> &in options, bool is_expandable, bool draw_title = true, bool find_protect = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("panel_t", "single_select_t add_single_select(const string &in name, const array<string> &in options, int initial_index, bool is_expandable, bool draw_title = true, bool find_protect = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("panel_t", "button_t add_button(const string &in name, button_callback_t@ cb, bool find_protect = false)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("checkbox_t", "bool get() const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("checkbox_t", "void set(bool)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("checkbox_t", "void set_active(bool)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// slider_int_t methods
 	r = engine->RegisterObjectMethod("slider_int_t", "int get() const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("slider_int_t", "void set(int)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("slider_int_t", "void set_active(bool)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// slider_double_t methods
 	r = engine->RegisterObjectMethod("slider_double_t", "double get() const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("slider_double_t", "void set(double)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("slider_double_t", "void set_active(bool)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// keybind_t methods
 	r = engine->RegisterObjectMethod("keybind_t", "void get(int &out, string &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("keybind_t", "void set(int, const string &in)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("keybind_t", "void set_active(bool)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("keybind_t", "bool is_pressed() const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// color_picker_t methods
 	r = engine->RegisterObjectMethod("color_picker_t", "void get(array<float> &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("color_picker_t", "void set(const array<float> &in)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("color_picker_t", "void set_active(bool)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// list_t methods
 	r = engine->RegisterObjectMethod("list_t", "int get() const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("list_t", "int get_count() const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("list_t", "void clear()", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
@@ -409,16 +400,14 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectMethod("list_t", "void hide(int) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("list_t", "void show(int) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("list_t", "void set_active(bool)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// multi_select_t methods
 	r = engine->RegisterObjectMethod("multi_select_t", "void get(array<bool> &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("multi_select_t", "void set(int, bool)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("multi_select_t", "void set_active(bool)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// single_select_t methods
 	r = engine->RegisterObjectMethod("single_select_t", "int get() const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("single_select_t", "void set(int)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("single_select_t", "void set_active(bool)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	// button_t methods
 	r = engine->RegisterObjectMethod("button_t", "void set_active(bool)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+
 	// =====================================================
 	// STRING METHODS
 	// =====================================================
@@ -445,7 +434,7 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	// Core methods
 	r = engine->RegisterObjectMethod("hash_map", "void set(uint64, ?&in)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("hash_map", "bool get(uint64, ?&out)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("hash_map", "bool contains(uint64) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("hash_map", "bool contains(uint64 key) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("hash_map", "bool erase(uint64)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("hash_map", "void clear()", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("hash_map", "uint size() const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
@@ -473,7 +462,7 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectMethod("hash_set", "bool empty() const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	// Convenience methods
 	r = engine->RegisterObjectMethod("hash_set", "void set(uint64)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("hash_set", "bool get(uint64, uint64 &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("hash_set", "bool get(uint64 v, uint64 &out value) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	// Iteration methods
 	r = engine->RegisterObjectMethod("hash_set", "void iter_begin()", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("hash_set", "bool iter_next(uint64 &out)", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
@@ -509,12 +498,12 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("uproc_t ref_unprotected_process(uint)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("uproc_t ref_unprotected_process(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
 	// Callback API
-	r = engine->RegisterGlobalFunction("int register_callback(const __Internal_CallbackFn@, int, int)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("int register_callback(const __Internal_CallbackFn@ fn, int every_ms, int data_index, bool render_on_top = false)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void unregister_callback(int)", asFUNCTION(StubFunction), asCALL_CDECL);
 	// Mutex API
 	r = engine->RegisterGlobalFunction("mutex_t create_mutex()", asFUNCTION(StubFunction), asCALL_CDECL);
 	// Net API
-	r = engine->RegisterGlobalFunction("ws_t ws_connect(const string &in, uint = 0)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("ws_t ws_connect(const string &in url, uint timeout_ms = 0)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool net_http_get(const string &in, uint &out, string &out, uint = 0)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool net_http_post(const string &in, const string &in, const string &in, uint &out, string &out, uint = 0)", asFUNCTION(StubFunction), asCALL_CDECL);
 	// Render API - Viewport
@@ -535,8 +524,8 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("void draw_four_corner_gradient(float, float, float, float, uint8, uint8, uint8, uint8, uint8, uint8, uint8, uint8, uint8, uint8, uint8, uint8, uint8, uint8, uint8, uint8, float)", asFUNCTION(StubFunction), asCALL_CDECL);
 
 	// Render API - Fonts and Text
-	r = engine->RegisterGlobalFunction("uint64 create_font(const string &in, float, bool, bool, array<uint>@ = null)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("uint64 create_font_mem(const string &in, float, const array<uint8> &in, bool, bool, array<uint>@ = null)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("uint64 create_font(const string &in path, float size, bool antialias, bool load_color, array<uint> @glyph_ranges = null)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("uint64 create_font_mem(const string &in label, float size, const array<uint8> &in buf, bool antialias, bool load_color, array<uint> @glyph_ranges = null)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("uint64 get_font18()", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("uint64 get_font20()", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("uint64 get_font24()", asFUNCTION(StubFunction), asCALL_CDECL);
@@ -575,7 +564,7 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("uint64 create_render_target(uint, uint)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void destroy_render_target(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
 	// -- Draw Call
-	r = engine->RegisterGlobalFunction("void custom_draw(uint64, uint64, const array<uint8> &in, uint, int, uint64, uint64, uint64, int, uint64, const array<uint8> @, int)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void custom_draw(uint64 shader, uint64 vb, const array<uint8> &in vertex_data, uint vertex_count, int topology, uint64 blend, uint64 sampler, uint64 texture, int tex_slot, uint64 cb, const array<uint8> @cb_data, int cb_slot)", asFUNCTION(StubFunction), asCALL_CDECL);
 	// -- Render Target Control
 	r = engine->RegisterGlobalFunction("void custom_set_render_target(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void custom_reset_render_target()", asFUNCTION(StubFunction), asCALL_CDECL);
@@ -585,7 +574,7 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	// -- Index Buffers
 	r = engine->RegisterGlobalFunction("uint64 create_index_buffer(uint, bool, bool)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void destroy_index_buffer(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("void custom_draw_indexed(uint64, uint64, const array<uint8> &in, uint, uint64, const array<uint8> &in, uint, int, uint64, uint64, uint64, int, uint64, const array<uint8> @, int)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void custom_draw_indexed(uint64 shader, uint64 vb, const array<uint8> &in vertex_data, uint vertex_count, uint64 ib, const array<uint8> &in index_data, uint index_count, int topology, uint64 blend, uint64 sampler, uint64 texture, int tex_slot, uint64 cb, const array<uint8> @cb_data, int cb_slot)", asFUNCTION(StubFunction), asCALL_CDECL);
 
 	// -- Depth / Stencil
 	r = engine->RegisterGlobalFunction("uint64 create_depth_stencil_state(bool, bool, int)", asFUNCTION(StubFunction), asCALL_CDECL);
@@ -633,41 +622,42 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("uint64 load_mesh_mem(const array<uint8> &in)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void get_mesh_info(uint64, float &out, float &out, float &out, float &out, float &out, float &out, float &out, float &out)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void destroy_mesh(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("void draw_mesh(uint64, uint64, int, uint64, uint64, uint64, int, uint64, const array<uint8> @, int)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void draw_mesh(uint64 mesh, uint64 shader, int topology, uint64 blend, uint64 sampler, uint64 texture, int tex_slot, uint64 cb, const array<uint8> @cb_data, int cb_slot)", asFUNCTION(StubFunction), asCALL_CDECL);
 
 	// -- Procedural Mesh
 	r = engine->RegisterGlobalFunction("uint64 create_mesh_raw(const array<uint8> &in, uint, uint, const array<uint8> &in, uint, bool)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("float get_mesh_stride(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
 
 	// -- Multi Constant Buffer Binding
-	r = engine->RegisterGlobalFunction("void custom_bind_constant_buffer(uint64, const array<uint8> @, int, int)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void custom_bind_constant_buffer(uint64 cb, const array<uint8> &in data, int slot, int stage)", asFUNCTION(StubFunction), asCALL_CDECL);
 
 	// -- Dynamic Texture Updates
 	r = engine->RegisterGlobalFunction("void custom_update_texture(uint64, uint, uint, uint, uint, const array<uint8> &in)", asFUNCTION(StubFunction), asCALL_CDECL);
 
 	// Extended Math API - Global functions
-	r = engine->RegisterGlobalFunction("double clamp(double, double, double)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("double saturate(double)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("int sign(double)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("double round(double)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("double round_up(double)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("double round_down(double)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("double fract(double)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("double lerp(double, double, double)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("double wrap(double, double, double)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("double inverse_lerp(double, double, double)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("double remap(double, double, double, double, double)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("double smoothstep(double, double, double)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("bool is_nan(double)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("bool is_inf(double)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("double clamp(double x, double a, double b)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("double saturate(double x)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("int sign(double x)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("double round(double x)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("double round_up(double x)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("double round_down(double x)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("double fract(double x)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("double lerp(double a, double b, double t)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("double wrap(double x, double min, double max)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("double inverse_lerp(double a, double b, double v)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("double remap(double a1, double b1, double a2, double b2, double v)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("double step(double edge, double x)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("double smoothstep(double edge0, double edge1, double x)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool is_nan(double x)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool is_inf(double x)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("double random()", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("void random_seed(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("double random_range(double, double)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("int64 random_int(int64, int64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void random_seed(uint64 x)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("double random_range(double a, double b)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("int64 random_int(int64 a, int64 b)", asFUNCTION(StubFunction), asCALL_CDECL);
 
 	// Extended Math API - Random functions
 	r = engine->RegisterGlobalFunction("bool random_bool()", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("double random_gaussian(double, double)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("double random_gaussian(double a, double b)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("vector2 random_unit_vec2()", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("vector3 random_unit_vec3()", asFUNCTION(StubFunction), asCALL_CDECL);
 
@@ -684,10 +674,11 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("bool world_to_screen_transposed(const vector3 &in, const matrix4x4 &in, vector2 &out, const vector2 &in = vector2(0, 0))", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool source2_world_to_screen(const vector3 &in, const matrix4x4 &in, vector2 &out)", asFUNCTION(StubFunction), asCALL_CDECL);
 	// Logging
-	r = engine->RegisterGlobalFunction("void log(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("void log_error(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void log(const string &in message)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void log_error(const string &in message)", asFUNCTION(StubFunction), asCALL_CDECL);
 
-	r = engine->RegisterGlobalFunction("void log_console(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void log_console(const string &in message)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void log_console_error(const string &in message)", asFUNCTION(StubFunction), asCALL_CDECL);
 	// =====================================================
 	// SYSTEM API (CPU info, timing, datetime)
 	// =====================================================
@@ -744,7 +735,7 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("bool copy_to_clipboard(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool copy_from_clipboard(string &out)", asFUNCTION(StubFunction), asCALL_CDECL);
 	// Util function
-	r = engine->RegisterGlobalFunction("uint64 get_tickcount64()", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("int64 get_tickcount64()", asFUNCTION(StubFunction), asCALL_CDECL);
 	// Engine API
 	r = engine->RegisterGlobalFunction("string get_username()", asFUNCTION(StubFunction), asCALL_CDECL);
 	// Game-specific functions
@@ -774,7 +765,7 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("string construct_config()", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void apply_config(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
 	// Zydis API - use factory function name that doesn't conflict with type
-	r = engine->RegisterGlobalFunction("ZydisBuilder@ CreateZydisBuilder()", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("ZydisBuilder@ ZydisBuilder()", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool zydis_encode(ZydisEncoderRequest &in, array<uint8> &out)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool zydis_encode_absolute(ZydisEncoderRequest &in, uint64, array<uint8> &out)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool zydis_nop_fill(array<uint8> &out, uint32)", asFUNCTION(StubFunction), asCALL_CDECL);
@@ -797,11 +788,11 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("uint64 xgetbv(int)", asFUNCTION(StubFunction), asCALL_CDECL);
 	// Unicorn API
 	r = engine->RegisterGlobalFunction("uint64 uc_create()", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("uint64 uc_create_process(proc_t, bool)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("bool uc_mem_map(uint64, uint64, uint64, uint)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("uint64 uc_create_process(proc_t proc, bool allow_writes = true)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool uc_mem_map(uint64 handle, uint64 addr, uint64 size, uint32 perms)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool uc_mem_write(uint64, uint64, const array<uint8> &in)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("bool uc_mem_read(uint64, uint64, const int, array<uint8> &out)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("void uc_reg_write64(uint64, int, uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool uc_mem_read(uint64 handle, uint64 addr, uint32 size, array<uint8> &out data)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool uc_reg_write64(uint64 handle, int reg, uint64 value)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("uint64 uc_reg_read64(uint64, int)", asFUNCTION(StubFunction), asCALL_CDECL);
 	// Unicorn 128-bit and 256-bit register functions
 	r = engine->RegisterGlobalFunction("bool uc_reg_write128(uint64, int, const array<uint8> &in)", asFUNCTION(StubFunction), asCALL_CDECL);
@@ -810,18 +801,20 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("bool uc_reg_read256(uint64, int, array<uint8> &out)", asFUNCTION(StubFunction), asCALL_CDECL);
 
 	r = engine->RegisterGlobalFunction("bool uc_setup_stack(uint64, uint64, uint64, uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("int uc_start(uint64, uint64, uint64, uint64, uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("int uc_start(uint64 handle, uint64 begin, uint64 end, uint64 timeout = 0, uint64 count = 0)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void uc_close(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("void uc_flush_code(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool uc_flush_code(uint64 handle)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool uc_hook_add(uint64, int, UcHookFn@)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void uc_emu_stop(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void uc_del_hook(uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("int uc_get_last_exception(uint64 handle)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("uint64 uc_get_exception_address(uint64 handle)", asFUNCTION(StubFunction), asCALL_CDECL);
 	// Unicorn constants
 	static const uint UC_PROT_NONE = 0;
-	static const uint UC_PROT_READ = 1;
-	static const uint UC_PROT_WRITE = 2;
-	static const uint UC_PROT_EXEC = 4;
-	static const uint UC_PROT_ALL = 7;
+	static const uint32 UC_PROT_READ = 1;
+	static const uint32 UC_PROT_WRITE = 2;
+	static const uint32 UC_PROT_EXEC = 4;
+	static const uint32 UC_PROT_ALL = 7;
 
 	static const int UC_HOOK_INTR = 1;
 	static const int UC_HOOK_CODE = 2;
@@ -870,11 +863,35 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	static const int UC_X86_REG_XMM14 = 34;
 	static const int UC_X86_REG_XMM15 = 35;
 
+	static const int UC_X86_REG_CS = 36;
+	static const int UC_X86_REG_DS = 37;
+	static const int UC_X86_REG_ES = 38;
+	static const int UC_X86_REG_FS = 39;
+	static const int UC_X86_REG_GS = 40;
+	static const int UC_X86_REG_SS = 41;
+	static const int UC_X86_REG_MXCSR = 42;
+	static const int UC_X86_REG_YMM0 = 43;
+	static const int UC_X86_REG_YMM1 = 44;
+	static const int UC_X86_REG_YMM2 = 45;
+	static const int UC_X86_REG_YMM3 = 46;
+	static const int UC_X86_REG_YMM4 = 47;
+	static const int UC_X86_REG_YMM5 = 48;
+	static const int UC_X86_REG_YMM6 = 49;
+	static const int UC_X86_REG_YMM7 = 50;
+	static const int UC_X86_REG_YMM8 = 51;
+	static const int UC_X86_REG_YMM9 = 52;
+	static const int UC_X86_REG_YMM10 = 53;
+	static const int UC_X86_REG_YMM11 = 54;
+	static const int UC_X86_REG_YMM12 = 55;
+	static const int UC_X86_REG_YMM13 = 56;
+	static const int UC_X86_REG_YMM14 = 57;
+	static const int UC_X86_REG_YMM15 = 58;
+
 	r = engine->RegisterGlobalProperty("const uint UC_PROT_NONE", (void*)&UC_PROT_NONE);
-	r = engine->RegisterGlobalProperty("const uint UC_PROT_READ", (void*)&UC_PROT_READ);
-	r = engine->RegisterGlobalProperty("const uint UC_PROT_WRITE", (void*)&UC_PROT_WRITE);
-	r = engine->RegisterGlobalProperty("const uint UC_PROT_EXEC", (void*)&UC_PROT_EXEC);
-	r = engine->RegisterGlobalProperty("const uint UC_PROT_ALL", (void*)&UC_PROT_ALL);
+	r = engine->RegisterGlobalProperty("const uint32 UC_PROT_READ", (void*)&UC_PROT_READ);
+	r = engine->RegisterGlobalProperty("const uint32 UC_PROT_WRITE", (void*)&UC_PROT_WRITE);
+	r = engine->RegisterGlobalProperty("const uint32 UC_PROT_EXEC", (void*)&UC_PROT_EXEC);
+	r = engine->RegisterGlobalProperty("const uint32 UC_PROT_ALL", (void*)&UC_PROT_ALL);
 
 	r = engine->RegisterGlobalProperty("const int UC_HOOK_INTR", (void*)&UC_HOOK_INTR);
 	r = engine->RegisterGlobalProperty("const int UC_HOOK_CODE", (void*)&UC_HOOK_CODE);
@@ -922,6 +939,30 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM14", (void*)&UC_X86_REG_XMM14);
 	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM15", (void*)&UC_X86_REG_XMM15);
 
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_CS;", (void*)&UC_X86_REG_CS);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_DS;", (void*)&UC_X86_REG_DS);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_ES;", (void*)&UC_X86_REG_ES);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_FS;", (void*)&UC_X86_REG_FS);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_GS;", (void*)&UC_X86_REG_GS);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_SS;", (void*)&UC_X86_REG_SS);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_MXCSR;", (void*)&UC_X86_REG_MXCSR);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM0;", (void*)&UC_X86_REG_YMM0);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM1;", (void*)&UC_X86_REG_YMM1);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM2;", (void*)&UC_X86_REG_YMM2);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM3;", (void*)&UC_X86_REG_YMM3);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM4;", (void*)&UC_X86_REG_YMM4);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM5;", (void*)&UC_X86_REG_YMM5);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM6;", (void*)&UC_X86_REG_YMM6);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM7;", (void*)&UC_X86_REG_YMM7);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM8;", (void*)&UC_X86_REG_YMM8);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM9;", (void*)&UC_X86_REG_YMM9);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM10;", (void*)&UC_X86_REG_YMM10);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM11;", (void*)&UC_X86_REG_YMM11);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM12;", (void*)&UC_X86_REG_YMM12);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM13;", (void*)&UC_X86_REG_YMM13);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM14;", (void*)&UC_X86_REG_YMM14);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM15;", (void*)&UC_X86_REG_YMM15);
+
 	// Window operations
 	r = engine->RegisterGlobalFunction("uint64 find_window(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);	r = engine->RegisterGlobalFunction("uint64 find_window(const string &in title, const string &in className)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("uint64 find_window_ex(const string &in, const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
@@ -944,11 +985,11 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("void send_mouse_input(int64, int64, uint, uint)", asFUNCTION(StubFunction), asCALL_CDECL);
 
 	// Key operations
-	r = engine->RegisterGlobalFunction("bool send_char(uint64, const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("bool send_key(uint64, int)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("void win_key_down(int)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("void win_key_up(int)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("void win_key_press(int, int = 30)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool send_char(uint64 hwnd, const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool send_key(uint64 hwnd, uint vk)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void win_key_down(uint vk)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void win_key_up(uint vk)", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("void win_key_press(uint vk, uint delay_ms = 30)", asFUNCTION(StubFunction), asCALL_CDECL);
 	// Message operations
 	r = engine->RegisterGlobalFunction("bool post_message(uint64, uint, uint64, uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("uint64 send_message(uint64, uint, uint64, uint64)", asFUNCTION(StubFunction), asCALL_CDECL);
@@ -961,7 +1002,7 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("bool file_exists(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool does_file_exist(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool create_directory(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
-	r = engine->RegisterGlobalFunction("bool create_file(const string &in, const string &in = \"\")", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterGlobalFunction("bool create_file(const string &in path, const string &in data = \"\")", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool read_file(const string &in, string &out)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool read_file(const string &in, array<uint8> &out)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool write_file(const string &in, const array<uint8> &in)", asFUNCTION(StubFunction), asCALL_CDECL);
