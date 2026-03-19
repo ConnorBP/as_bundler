@@ -136,7 +136,7 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterObjectMethod("quaternion", "double dot(const quaternion &in) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("quaternion", "vector3 rotate(const vector3 &in) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 	r = engine->RegisterObjectMethod("quaternion", "void to_euler(double &out, double &out, double &out) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
-	r = engine->RegisterObjectMethod("quaternion", "bool writeas_float(uproc_t& in, uint64 addr) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
+	r = engine->RegisterObjectMethod("quaternion", "bool writeas_float(proc_t &in, uint64) const", asFUNCTION(StubFunction), asCALL_CDECL_OBJLAST);
 
 	// matrix4x4
 	r = engine->RegisterObjectType("matrix4x4", sizeof(double)*16, asOBJ_VALUE | asOBJ_POD | asOBJ_APP_CLASS_CDAK);
@@ -765,7 +765,7 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalFunction("string construct_config()", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("void apply_config(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);
 	// Zydis API - use factory function name that doesn't conflict with type
-	r = engine->RegisterGlobalFunction("ZydisBuilder@ ZydisBuilder()", asFUNCTION(StubFunction), asCALL_CDECL);
+	r = engine->RegisterObjectBehaviour("ZydisBuilder", asBEHAVE_FACTORY, "ZydisBuilder@ f()", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool zydis_encode(ZydisEncoderRequest &in, array<uint8> &out)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool zydis_encode_absolute(ZydisEncoderRequest &in, uint64, array<uint8> &out)", asFUNCTION(StubFunction), asCALL_CDECL);
 	r = engine->RegisterGlobalFunction("bool zydis_nop_fill(array<uint8> &out, uint32)", asFUNCTION(StubFunction), asCALL_CDECL);
@@ -939,29 +939,29 @@ void RegisterCustomAPIs(asIScriptEngine* engine) {
 	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM14", (void*)&UC_X86_REG_XMM14);
 	r = engine->RegisterGlobalProperty("const int UC_X86_REG_XMM15", (void*)&UC_X86_REG_XMM15);
 
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_CS;", (void*)&UC_X86_REG_CS);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_DS;", (void*)&UC_X86_REG_DS);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_ES;", (void*)&UC_X86_REG_ES);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_FS;", (void*)&UC_X86_REG_FS);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_GS;", (void*)&UC_X86_REG_GS);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_SS;", (void*)&UC_X86_REG_SS);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_MXCSR;", (void*)&UC_X86_REG_MXCSR);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM0;", (void*)&UC_X86_REG_YMM0);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM1;", (void*)&UC_X86_REG_YMM1);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM2;", (void*)&UC_X86_REG_YMM2);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM3;", (void*)&UC_X86_REG_YMM3);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM4;", (void*)&UC_X86_REG_YMM4);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM5;", (void*)&UC_X86_REG_YMM5);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM6;", (void*)&UC_X86_REG_YMM6);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM7;", (void*)&UC_X86_REG_YMM7);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM8;", (void*)&UC_X86_REG_YMM8);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM9;", (void*)&UC_X86_REG_YMM9);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM10;", (void*)&UC_X86_REG_YMM10);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM11;", (void*)&UC_X86_REG_YMM11);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM12;", (void*)&UC_X86_REG_YMM12);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM13;", (void*)&UC_X86_REG_YMM13);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM14;", (void*)&UC_X86_REG_YMM14);
-	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM15;", (void*)&UC_X86_REG_YMM15);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_CS", (void*)&UC_X86_REG_CS);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_DS", (void*)&UC_X86_REG_DS);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_ES", (void*)&UC_X86_REG_ES);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_FS", (void*)&UC_X86_REG_FS);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_GS", (void*)&UC_X86_REG_GS);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_SS", (void*)&UC_X86_REG_SS);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_MXCSR", (void*)&UC_X86_REG_MXCSR);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM0", (void*)&UC_X86_REG_YMM0);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM1", (void*)&UC_X86_REG_YMM1);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM2", (void*)&UC_X86_REG_YMM2);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM3", (void*)&UC_X86_REG_YMM3);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM4", (void*)&UC_X86_REG_YMM4);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM5", (void*)&UC_X86_REG_YMM5);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM6", (void*)&UC_X86_REG_YMM6);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM7", (void*)&UC_X86_REG_YMM7);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM8", (void*)&UC_X86_REG_YMM8);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM9", (void*)&UC_X86_REG_YMM9);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM10", (void*)&UC_X86_REG_YMM10);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM11", (void*)&UC_X86_REG_YMM11);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM12", (void*)&UC_X86_REG_YMM12);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM13", (void*)&UC_X86_REG_YMM13);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM14", (void*)&UC_X86_REG_YMM14);
+	r = engine->RegisterGlobalProperty("const int UC_X86_REG_YMM15", (void*)&UC_X86_REG_YMM15);
 
 	// Window operations
 	r = engine->RegisterGlobalFunction("uint64 find_window(const string &in)", asFUNCTION(StubFunction), asCALL_CDECL);	r = engine->RegisterGlobalFunction("uint64 find_window(const string &in title, const string &in className)", asFUNCTION(StubFunction), asCALL_CDECL);
